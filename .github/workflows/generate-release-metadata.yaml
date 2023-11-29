@@ -75,6 +75,8 @@ jobs:
           script: |
             const raw = JSON.parse(process.env.RAW_FILES);
             const directories = Array.from(new Set(raw
+              .filter(x => x.startsWith('${{ inputs.rootFolder }}'))
+              .filter(x => x.includes('/'))
               .map(x => x.split('/')[${{ inputs.index-split }}])
               .map(x => x.split('.')[0])
             ));
@@ -85,13 +87,13 @@ jobs:
 
   plan:
     needs: detect
-    if: ${{ needs.detect.outputs.directories != '{}' }}
+    if: ${{ needs.detect.outputs.directories != '{}' || inputs.rootFolder == '/' }}
     permissions:
       contents: write
       pull-requests: read
     runs-on: ubuntu-latest
     strategy:
-      matrix: "${{ fromJson(needs.detect.outputs.directories) }}"
+      matrix: "${{ fromJson(needs.detect.outputs.directories)  || '' }}"
       fail-fast: false
     name: "Module: ${{ matrix.directory }}"
     steps:
