@@ -120,13 +120,6 @@ jobs:
                 }
               }
             }`;
-            const query2 = `query($owner: String!, $repo: String!, $first: Int!) {
-              repository(owner: $owner, name: $repo) {
-                refs(first: $first, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) {
-                  edges { node { name } }
-                }
-              }
-            }`;
 
             let refPrefix = `refs/tags/${process.env.PACKAGE_NAME}/`;
             if (process.env.PACKAGE_NAME == 'main')
@@ -135,19 +128,10 @@ jobs:
             }
             console.log('Querying for previous version', refPrefix);
 
-            let result;
-            if (process.env.PACKAGE_NAME == 'main')
-            {
-              result = await github.graphql(query2, { owner, repo,
-              first: 1,
-            });
-            }
-            else {
-              result = await github.graphql(query, { owner, repo,
+            const result = await github.graphql(query, { owner, repo,
               refPrefix: refPrefix,
               first: 1,
             });
-            }
 
             console.log(result);
 
