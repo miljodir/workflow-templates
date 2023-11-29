@@ -123,14 +123,23 @@ jobs:
             let refPrefix = `refs/tags/${process.env.PACKAGE_NAME}/`;
             if (process.env.PACKAGE_NAME == 'main')
             {
-              refPrefix = '';
+              refPrefix = 'refs/tags/';
             }
             console.log('Querying for previous version', refPrefix);
 
-            const result = await github.graphql(query, { owner, repo,
+            let result;
+            if (process.env.PACKAGE_NAME == 'main')
+            {
+              result = await github.graphql(query, { owner, repo,
+              first: 1,
+            });
+            }
+            else {
+              result = await github.graphql(query, { owner, repo,
               refPrefix: refPrefix,
               first: 1,
             });
+            }
 
             console.log(result);
 
