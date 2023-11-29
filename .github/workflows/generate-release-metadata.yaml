@@ -113,13 +113,21 @@ jobs:
         with:
           script: |
             const { owner, repo } = context.repo;
-            const query = `query($owner: String!, $repo: String!, $first: Int!) {
+            const query = `query($owner: String!, $repo: String!, $refPrefix: String!, $first: Int!) {
               repository(owner: $owner, name: $repo) {
                 refs(refPrefix: $refPrefix, first: $first, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) {
                   edges { node { name } }
                 }
               }
             }`;
+            const query2 = `query($owner: String!, $repo: String!, $first: Int!) {
+              repository(owner: $owner, name: $repo) {
+                refs(first: $first, orderBy: {field: TAG_COMMIT_DATE, direction: DESC}) {
+                  edges { node { name } }
+                }
+              }
+            }`;
+
             let refPrefix = `refs/tags/${process.env.PACKAGE_NAME}/`;
             if (process.env.PACKAGE_NAME == 'main')
             {
@@ -130,7 +138,7 @@ jobs:
             let result;
             if (process.env.PACKAGE_NAME == 'main')
             {
-              result = await github.graphql(query, { owner, repo,
+              result = await github.graphql(query2, { owner, repo,
               first: 1,
             });
             }
