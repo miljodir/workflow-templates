@@ -25,6 +25,7 @@ on:
         description: "Write Terraform docs to wiki or not"
         required: false
         default: "false"
+
 jobs:
   detect:
     runs-on: ubuntu-latest
@@ -40,8 +41,6 @@ jobs:
          && github.event.action == 'closed'
          && github.event.pull_request.merged == true }}
     steps:
-      # I'm getting the labels from the API and not the context("contains(github.event.pull_request.labels.*.name, 'Env Promote')") as the labels
-      # are added in 2nd API call so they aren't included in the PR context
       - name: Check PR labels
         id: check_pr_label
         env:
@@ -91,13 +90,13 @@ jobs:
 
   plan:
     needs: detect
-    if: ${{ needs.detect.outputs.directories != '{}' }}
+    if: ${{ needs.detect.outputs.directories != '{}' || inputs.rootFolder == '/' }}
     permissions:
       contents: write
       pull-requests: read
     runs-on: ubuntu-latest
     strategy:
-      matrix: "${{ fromJson(needs.detect.outputs.directories) }}"
+      matrix: ${{ fromJson(needs.detect.outputs.directories)  || fromJSON('{"/"}') }}
       fail-fast: false
     name: "Module: ${{ matrix.directory }}"
     steps:
