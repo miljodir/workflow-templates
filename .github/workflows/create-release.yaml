@@ -9,7 +9,7 @@ on:
 jobs:
   tag:
     permissions:
-      packages: write
+      contents: write
     runs-on: ubuntu-latest
     name: "Tag Releases"
     steps:
