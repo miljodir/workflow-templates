@@ -76,8 +76,6 @@ jobs:
             const directories = Array.from(new Set(raw
               .filter(x => x.startsWith('${{ inputs.rootFolder }}'))
               .filter(x => x.includes('/'))
-              .map(x => x.split('/')[${{ inputs.index-split }}])
-              .map(x => x.split('.')[0])
             ));
             if (directories.length < 1) return {};
             return {
