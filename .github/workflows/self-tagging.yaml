@@ -1,0 +1,40 @@
+name: Create and update git tag for updated workflows
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    branches:
+      - main
+    paths:
+      - .github/workflows/**
+      - "!.github/workflows/self-tagging.yaml"
+  pull_request_target:
+    types: [closed]
+    branches:
+      - main
+    paths:
+      - .github/workflows/**
+      - "!.github/workflows/self-tagging.yaml"
+
+  repository_dispatch:
+    types: [create_release]
+
+jobs:
+  pr:
+    if: github.event_name != 'repository_dispatch'
+    uses: ./.github/workflows/generate-release-metadata.yaml
+    permissions:
+      pull-requests: write
+      contents: write
+    with:
+      rootFolder: .github/workflows
+      type: actions
+      index-split: 2 # .github/workflows = index 2
+      wiki-enabled: false
+
+  tag:
+    permissions:
+      contents: write
+    if: github.event_name == 'repository_dispatch'
+    uses: ./.github/workflows/create-release.yaml
+    with:
+      payload: ${{ github.event.client_payload }}

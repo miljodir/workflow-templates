@@ -29,6 +29,9 @@ on:
 jobs:
   detect:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     name: "Detect pull request context"
     outputs:
       directories: ${{ steps.condense.outputs.result }}
@@ -85,6 +88,8 @@ jobs:
   plan:
     needs: detect
     if: ${{ needs.detect.outputs.directories != '{}' }}
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     strategy:
       matrix: "${{ fromJson(needs.detect.outputs.directories) }}"
@@ -269,6 +274,8 @@ jobs:
   comment:
     needs: [detect, plan]
     if: needs.detect.outputs.is-merge-event == 'false'
+    permissions:
+      pull-requests: write
     runs-on: ubuntu-latest
     name: "Comment on PR"
     steps:
