@@ -25,7 +25,6 @@ on:
         description: "Write Terraform docs to wiki or not"
         required: false
         default: "false"
-
 jobs:
   detect:
     runs-on: ubuntu-latest
