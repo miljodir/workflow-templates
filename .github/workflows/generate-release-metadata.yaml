@@ -25,6 +25,7 @@ on:
         description: "Write Terraform docs to wiki or not"
         required: false
         default: "false"
+
 jobs:
   detect:
     runs-on: ubuntu-latest
@@ -40,8 +41,6 @@ jobs:
          && github.event.action == 'closed'
          && github.event.pull_request.merged == true }}
     steps:
-      # I'm getting the labels from the API and not the context("contains(github.event.pull_request.labels.*.name, 'Env Promote')") as the labels
-      # are added in 2nd API call so they aren't included in the PR context
       - name: Check PR labels
         id: check_pr_label
         env:
@@ -73,12 +72,22 @@ jobs:
         with:
           script: |
             const raw = JSON.parse(process.env.RAW_FILES);
-            const directories = Array.from(new Set(raw
+            let directories = Array.from(new Set(raw
               .filter(x => x.startsWith('${{ inputs.rootFolder }}'))
               .filter(x => x.includes('/'))
               .map(x => x.split('/')[${{ inputs.index-split }}])
               .map(x => x.split('.')[0])
             ));
+            if (directories.length < 1 && ${{ inputs.rootFolder == '/' }})
+            {
+              directories = Array.from(new Set(raw
+              .filter(x => x.includes('.tf'))
+              .filter(x => !x.startsWith('.'))
+              .filter(x => !x.includes('modules'))
+              .filter(x => !x.includes('examples'))
+              .map(x => x.substr(0, x.lastIndexOf('/')))
+            ));
+            }
             if (directories.length < 1) return {};
             return {
               include: directories.map(directory => ({ directory })),
@@ -92,7 +101,7 @@ jobs:
       pull-requests: read
     runs-on: ubuntu-latest
     strategy:
-      matrix: "${{ fromJson(needs.detect.outputs.directories) }}"
+      matrix: ${{ fromJson(needs.detect.outputs.directories) }}
       fail-fast: false
     name: "Module: ${{ matrix.directory }}"
     steps:
@@ -100,7 +109,7 @@ jobs:
         uses: actions/github-script@v7
         id: prev-version
         env:
-          PACKAGE_NAME: "${{ matrix.directory }}"
+          PACKAGE_NAME: "${{ matrix.directory || 'main' }}"
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -111,10 +120,19 @@ jobs:
                 }
               }
             }`;
+
+            let refPrefix = `refs/tags/${process.env.PACKAGE_NAME}/`;
+            if (process.env.PACKAGE_NAME == 'main')
+            {
+              refPrefix = 'refs/tags/';
+            }
+            console.log('Querying for previous version', refPrefix);
+
             const result = await github.graphql(query, { owner, repo,
-              refPrefix: `refs/tags/${process.env.PACKAGE_NAME}/`,
+              refPrefix: refPrefix,
               first: 1,
             });
+
             const prevNode = result.repository.refs.edges[0];
             let prevVer = prevNode ? prevNode.node.name : '0.0.0';
             console.log('Found previous version', prevVer);
@@ -123,7 +141,7 @@ jobs:
             {
             console.log("Newest tag starts with 'v', attempting to fetch second newest tag...")
             const result = await github.graphql(query, { owner, repo,
-              refPrefix: `refs/tags/${process.env.PACKAGE_NAME}/`,
+              refPrefix: refPrefix,
               first: 2,
             });
             const prevNode = result.repository.refs.edges[1];
@@ -267,7 +285,7 @@ jobs:
       - name: Upload result artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: "${{ matrix.directory }}"
+          name: "${{ matrix.directory || 'main' }}"
           path: output
           retention-days: 5
 

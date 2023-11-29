@@ -23,22 +23,31 @@ jobs:
             const { sha, releases } = JSON.parse(process.env.CLIENT_PAYLOAD);
 
             for (const release of releases) {
-              const tagName = `${release.module}/${release.newVersion}`;
+              let tagName = `${release.module}/${release.newVersion}`;
+
+              if (release.module == "main")
+              {
+                tagName = `${release.newVersion}`;
+              }
 
               let ref = `refs/tags/${tagName}`;
               console.log('Tagging', tagName, 'as', sha);
               await github.rest.git.createRef({ owner, repo, ref, sha });
 
               const releaseVersion = `${release.newVersion}`;
-              const module = `${release.module}`;
+              let module = `${release.module}` + "/v";
+              if (module == "main/v")
+              {
+                module = "v";
+              }
 
                 try {
-                    ref = "tags/" + module + "/v" + releaseVersion.split(".")[0]
+                    ref = "tags/" + module + releaseVersion.split(".")[0]
                     console.log('Updating existing tag', ref, 'as', sha);
                     await github.rest.git.updateRef({ owner, repo, ref, sha });
                   }
                 catch {
-                    ref = "refs/tags/" + module + "/v" + releaseVersion.split(".")[0]
+                    ref = "refs/tags/" + module + releaseVersion.split(".")[0]
                     console.log('Creating new tag', ref, 'as', sha);
                     await github.rest.git.createRef({ owner, repo, ref, sha });
                   }
