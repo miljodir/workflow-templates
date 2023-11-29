@@ -36,7 +36,7 @@ jobs:
 
               const releaseVersion = `${release.newVersion}`;
               let module = `${release.module}` + "/v";
-              if (module == "main")
+              if (module == "main/v")
               {
                 module = "v";
               }
