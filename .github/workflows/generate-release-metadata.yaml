@@ -78,15 +78,12 @@ jobs:
               .map(x => x.split('/')[${{ inputs.index-split }}])
               .map(x => x.split('.')[0])
             ));
-            if (directories.length < 1 && ${{ inputs.rootFolder == '/' }})
-            {
               let directories = Array.from(new Set(raw
               .filter(x => x.includes('.tf'))
               .filter(x => !x.startsWith('.'))
               .filter(x => !x.includes('modules'))
               .filter(x => !x.includes('examples'))
               .map(x => x.substr(0, x.lastIndexOf('/')))
-            ));
             }
             if (directories.length < 1) return {};
             return {
