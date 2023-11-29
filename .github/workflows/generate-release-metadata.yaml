@@ -120,8 +120,13 @@ jobs:
                 }
               }
             }`;
+            let refPrefix = `refs/tags/${process.env.PACKAGE_NAME}/`;
+            if (${process.env.PACKAGE_NAME} == 'main')
+            {
+              refPrefix = `refs/tags/`;
+            }
             const result = await github.graphql(query, { owner, repo,
-              refPrefix: `refs/tags/${process.env.PACKAGE_NAME}/`,
+              refPrefix: refPrefix,
               first: 1,
             });
             const prevNode = result.repository.refs.edges[0];
@@ -132,7 +137,7 @@ jobs:
             {
             console.log("Newest tag starts with 'v', attempting to fetch second newest tag...")
             const result = await github.graphql(query, { owner, repo,
-              refPrefix: `refs/tags/${process.env.PACKAGE_NAME}/`,
+              refPrefix: refPrefix,
               first: 2,
             });
             const prevNode = result.repository.refs.edges[1];
