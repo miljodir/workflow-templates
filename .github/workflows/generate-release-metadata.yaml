@@ -123,7 +123,7 @@ jobs:
             let refPrefix = `refs/tags/process.env.PACKAGE_NAME/`;
             if (process.env.PACKAGE_NAME == 'main')
             {
-              refPrefix = `refs/tags/`;
+              refPrefix = null;
             }
 
             const result = await github.graphql(query, { owner, repo,
