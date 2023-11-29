@@ -242,15 +242,33 @@ jobs:
             `.trimLeft(), { encoding: 'utf-8' })
 
       - name: Document example 'source' line
-        if: ${{ inputs.type == 'terraform'}}
+        if: ${{ inputs.type == 'terraform' && inputs.rootFolder != '/' }}
         run: |
           cat > output/documentation.md <<'EOF'
           # Module Location
           To use this module in your Terraform, use the below source value.
 
           ```hcl
-          module "my_${{ matrix.directory }}" {
+          module "${{ matrix.directory }}" {
             source = "git@github.com:${{ github.repository }}//${{ inputs.rootFolder }}/${{ matrix.directory }}?ref=${{ matrix.directory }}/${{ steps.new-version.outputs.result }}"
+
+            # also any inputs for the module (see below)
+          }
+          ```
+
+          EOF
+
+      - name: Document example 'source' line
+        if: ${{ inputs.type == 'terraform' && inputs.rootFolder == '/' }}
+        run: |
+          source="miljodir/${{ github.repository }}"
+          cat > output/documentation.md <<'EOF'
+          # Module Location
+          To use this module in your Terraform, use the below source value.
+
+          ```hcl
+          module "main" {
+            source = "git@github.com:${{ github.repository }}?ref=${{ steps.new-version.outputs.result }}"
 
             # also any inputs for the module (see below)
           }
