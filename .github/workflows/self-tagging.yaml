@@ -37,4 +37,4 @@ jobs:
     if: github.event_name == 'repository_dispatch'
     uses: ./.github/workflows/create-release.yaml
     with:
-      payload: ${{ github.event.client_payload }}
+      payload: ${{ toJson(github.event.client_payload) }}
