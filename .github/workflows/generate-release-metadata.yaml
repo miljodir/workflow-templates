@@ -90,6 +90,7 @@ jobs:
     if: ${{ needs.detect.outputs.directories != '{}' }}
     permissions:
       contents: write
+      pull-requests: read
     runs-on: ubuntu-latest
     strategy:
       matrix: "${{ fromJson(needs.detect.outputs.directories) }}"
