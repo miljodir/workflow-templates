@@ -95,13 +95,13 @@ jobs:
 
   plan:
     needs: detect
-    if: ${{ needs.detect.outputs.directories != '{}' || inputs.rootFolder == '/' }}
+    if: ${{ needs.detect.outputs.directories != '{}' }}
     permissions:
       contents: write
       pull-requests: read
     runs-on: ubuntu-latest
     strategy:
-      matrix: ${{ fromJson(needs.detect.outputs.directories)  || fromJSON('{"/"}') }}
+      matrix: ${{ fromJson(needs.detect.outputs.directories) }}
       fail-fast: false
     name: "Module: ${{ matrix.directory }}"
     steps:
