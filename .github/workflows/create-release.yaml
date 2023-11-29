@@ -6,11 +6,10 @@ on:
         description: "Input metadata for the release"
         required: true
         type: string
-
 jobs:
   tag:
     permissions:
-      packages: write
+      contents: write
     runs-on: ubuntu-latest
     name: "Tag Releases"
     steps:

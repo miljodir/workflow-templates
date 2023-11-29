@@ -90,6 +90,7 @@ jobs:
     if: ${{ needs.detect.outputs.directories != '{}' }}
     permissions:
       contents: write
+      pull-requests: read
     runs-on: ubuntu-latest
     strategy:
       matrix: "${{ fromJson(needs.detect.outputs.directories) }}"
@@ -282,9 +283,6 @@ jobs:
       - uses: actions/download-artifact@v3
         with:
           path: outputs
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: outputs
 
       - uses: actions/github-script@v7
         with:
