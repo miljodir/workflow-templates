@@ -78,7 +78,7 @@ jobs:
               .map(x => x.split('/')[${{ inputs.index-split }}])
               .map(x => x.split('.')[0])
             ));
-            let directories = Array.from(new Set(raw
+            directories = Array.from(new Set(raw
             .filter(x => x.includes('.tf'))
             .filter(x => !x.startsWith('.'))
             .filter(x => !x.includes('modules'))
