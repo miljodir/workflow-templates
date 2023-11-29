@@ -1,0 +1,44 @@
+name: "Create release"
+on:
+  workflow_call:
+    inputs:
+      payload:
+        description: "Input metadata for the release"
+        required: true
+        type: string
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    name: "Tag Releases"
+    steps:
+      - uses: actions/github-script@v7
+        env:
+          CLIENT_PAYLOAD: ${{ toJSON(inputs.payload) }}
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            const { owner, repo } = context.repo;
+            const { sha, releases } = JSON.parse(process.env.CLIENT_PAYLOAD);
+
+            for (const release of releases) {
+              const tagName = `${release.module}/${release.newVersion}`;
+
+              let ref = `refs/tags/${tagName}`;
+              console.log('Tagging', tagName, 'as', sha);
+              await github.rest.git.createRef({ owner, repo, ref, sha });
+
+              const releaseVersion = `${release.newVersion}`;
+              const module = `${release.module}`;
+
+                try {
+                    ref = "tags/" + module + "/v" + releaseVersion.split(".")[0]
+                    console.log('Updating existing tag', ref, 'as', sha);
+                    await github.rest.git.updateRef({ owner, repo, ref, sha });
+                  }
+                catch {
+                    ref = "refs/tags/" + module + "/v" + releaseVersion.split(".")[0]
+                    console.log('Creating new tag', ref, 'as', sha);
+                    await github.rest.git.createRef({ owner, repo, ref, sha });
+                  }
+              }
