@@ -301,7 +301,7 @@ jobs:
             'src/${{ inputs.rootFolder }}/${{ matrix.directory }}'
 
       - name: Upload result artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: "${{ matrix.directory || 'main' }}"
           path: output
@@ -315,7 +315,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Comment on PR"
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           path: outputs
 
@@ -376,7 +376,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Dispatch release event"
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           path: outputs
 
