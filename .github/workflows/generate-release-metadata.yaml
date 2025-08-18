@@ -151,7 +151,7 @@ jobs:
             return prevVer;
           result-encoding: string
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: ${{ github.event_name == 'pull_request' && inputs.type == 'actions' }}
         with:
           ref: ${{ github.event.pull_request.head.ref }}
@@ -286,7 +286,7 @@ jobs:
 
       - name: Clone repository for analysis
         if: ${{ inputs.type == 'terraform'}}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.sha }}
           path: src
