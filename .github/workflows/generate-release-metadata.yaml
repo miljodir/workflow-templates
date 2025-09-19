@@ -47,7 +47,7 @@ jobs:
           PR_URL: ${{github.event.pull_request.html_url}} #TODO: check if needed (we don't checkout the code..)
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
-          LABELS=$(gh pr view $PR_URL --json labels  --jq '.labels[]| select((.name=="minor") or (.name=="major") or (.name=="patch") or (.name=="no-release")) |.name')
+          LABELS=$(gh pr view $PR_URL --json labels --jq '.labels[]| select((.name=="minor") or (.name=="major") or (.name=="patch") or (.name=="no-release")) |.name')
           NUMBER_OF_LABELS=$(echo "$LABELS" |wc -w)
           if [ "$NUMBER_OF_LABELS" -eq "1" ] ; then
             echo "Found: $LABELS"
@@ -103,6 +103,9 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.detect.outputs.directories) }}
       fail-fast: false
+    outputs:
+      job-total: ${{ strategy.job-total }}
+      name: "${{ matrix.directory || 'main' }}"
     name: "Module: ${{ matrix.directory }}"
     steps:
       - name: Detect previous version number
@@ -315,10 +318,10 @@ jobs:
     runs-on: ubuntu-latest
     name: "Comment on PR"
     steps:
-      - uses: actions/download-artifact@v5
+      - name: Download artifact(s)
+        uses: actions/download-artifact@v5
         with:
-          path: outputs
-
+          path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
       - uses: actions/github-script@v8
         with:
           script: |
@@ -377,8 +380,9 @@ jobs:
     name: "Dispatch release event"
     steps:
       - uses: actions/download-artifact@v5
+        name: Download artifact(s)
         with:
-          path: outputs
+          path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
 
       - name: Combine version information
         id: extract-releases
