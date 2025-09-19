@@ -321,7 +321,7 @@ jobs:
       - name: Download single artifact
         uses: actions/download-artifact@v5
         with:
-          path: ${{needs.plan.outputs.job-total == 1 && 'outputs/${{needs.plan.outputs.name}}' || 'outputs' }} 
+          path: ${{needs.plan.outputs.job-total == 1 && format('outputs/', needs.plan.outputs.name) || 'outputs' }} 
       - uses: actions/github-script@v8
         with:
           script: |
