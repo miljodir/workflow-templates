@@ -318,7 +318,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Comment on PR"
     steps:
-      - name: Download single artifact
+      - name: Download artifact(s)
         uses: actions/download-artifact@v5
         with:
           path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
@@ -380,8 +380,9 @@ jobs:
     name: "Dispatch release event"
     steps:
       - uses: actions/download-artifact@v5
+        name: Download artifact(s)
         with:
-          path: outputs
+          path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
 
       - name: Combine version information
         id: extract-releases
