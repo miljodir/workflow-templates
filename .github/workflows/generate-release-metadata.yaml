@@ -47,8 +47,7 @@ jobs:
           PR_URL: ${{github.event.pull_request.html_url}} #TODO: check if needed (we don't checkout the code..)
           GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
-          LABELS=$(gh pr view $PR_URL --json labels
-            --jq '.labels[]| select((.name=="minor") or (.name=="major") or (.name=="patch") or (.name=="no-release")) |.name')
+          LABELS=$(gh pr view $PR_URL --json labels --jq '.labels[]| select((.name=="minor") or (.name=="major") or (.name=="patch") or (.name=="no-release")) |.name')
           NUMBER_OF_LABELS=$(echo "$LABELS" |wc -w)
           if [ "$NUMBER_OF_LABELS" -eq "1" ] ; then
             echo "Found: $LABELS"
