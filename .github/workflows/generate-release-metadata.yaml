@@ -376,7 +376,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Dispatch release event"
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v4
         with:
           path: outputs
 
