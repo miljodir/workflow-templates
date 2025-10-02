@@ -43,17 +43,47 @@ jobs:
           tenant-id: ${{ vars.TENANT_ID }}
           subscription-id: ${{ vars.APIM_SUBSCRIPTION_ID }}
 
+      # determine next revision: if API exists increment, otherwise start at 1
+      - name: Determine API revision
+        id: revision
+        shell: pwsh
+        run: |
+          try {
+            $current = az apim api show `
+              -g ${{ vars.APIM_RG }} `
+              --service-name ${{ vars.APIM_SERVICE_NAME }} `
+              --api-id ${{ inputs.api_path }} `
+              --query "apiRevision" -o tsv
+            if ($current -match '^\d+$') { $rev = [int]$current + 1 } else { $rev = 1 }
+          } catch {
+            $rev = 1
+          }
+          echo "revision=$rev" >> $env:GITHUB_OUTPUT
+
       - name: Update API spec in API management from URL
         if: ${{ inputs.specification_url != '' }}
         id: import-url
         shell: pwsh
         run: |
-          az apim api import -g ${{ vars.APIM_RG }} --service-name ${{ vars.APIM_SERVICE_NAME }} --path ${{ inputs.api_path }} --specification-url ${{ inputs.specification_url }} --specification-format OpenApiJson --api-version ${{ inputs.api_version}}
-
+          az apim api import `
+            -g ${{ vars.APIM_RG }} `
+            --service-name ${{ vars.APIM_SERVICE_NAME }} `
+            --path ${{ inputs.api_path }} `
+            --specification-url ${{ inputs.specification_url }} `
+            --specification-format OpenApiJson `
+            --revision ${{ steps.revision.outputs.revision }} `
+            --api-version ${{ inputs.api_version }}
 
       - name: Update API spec in API management from path
         if: ${{ inputs.specification_path != '' }}
         id: import-path
         shell: pwsh
         run: |
-          az apim api import -g ${{ vars.APIM_RG }} --service-name ${{ vars.APIM_SERVICE_NAME }} --path ${{ inputs.api_path }} --specification-path ${{ inputs.specification_path }} --specification-format OpenApiJson --api-version ${{ inputs.api_version}}
+          az apim api import `
+            -g ${{ vars.APIM_RG }} `
+            --service-name ${{ vars.APIM_SERVICE_NAME }} `
+            --path ${{ inputs.api_path }} `
+            --specification-path ${{ inputs.specification_path }} `
+            --specification-format OpenApiJson `
+            --revision ${{ steps.revision.outputs.revision }} `
+            --api-version ${{ inputs.api_version}}
