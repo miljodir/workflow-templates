@@ -71,7 +71,6 @@ jobs:
             --path ${{ inputs.api_path }} `
             --specification-url ${{ inputs.specification_url }} `
             --specification-format OpenApiJson `
-            --api-version ${{ inputs.api_version }} `
             --api-revision ${{ steps.revision.outputs.revision }}
 
       - name: Update API spec in API management from path
@@ -85,5 +84,4 @@ jobs:
             --path ${{ inputs.api_path }} `
             --specification-path ${{ inputs.specification_path }} `
             --specification-format OpenApiJson `
-            --api-version ${{ inputs.api_version}} `
             --api-revision ${{ steps.revision.outputs.revision }}
