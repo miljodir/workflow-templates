@@ -71,8 +71,8 @@ jobs:
             --path ${{ inputs.api_path }} `
             --specification-url ${{ inputs.specification_url }} `
             --specification-format OpenApiJson `
-            --revision ${{ steps.revision.outputs.revision }} `
-            --api-version ${{ inputs.api_version }}
+            --api-version ${{ inputs.api_version }} `
+            --api-revision ${{ steps.revision.outputs.revision }}
 
       - name: Update API spec in API management from path
         if: ${{ inputs.specification_path != '' }}
@@ -85,5 +85,5 @@ jobs:
             --path ${{ inputs.api_path }} `
             --specification-path ${{ inputs.specification_path }} `
             --specification-format OpenApiJson `
-            --revision ${{ steps.revision.outputs.revision }} `
-            --api-version ${{ inputs.api_version}}
+            --api-version ${{ inputs.api_version}} `
+            --api-revision ${{ steps.revision.outputs.revision }}
