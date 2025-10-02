@@ -24,6 +24,7 @@ jobs:
   update-apim-api:
     runs-on: ubuntu-latest
     name: "Update API definition in API management"
+    environment: "apim"
     permissions:
       contents: read
       id-token: write
