@@ -52,7 +52,7 @@ jobs:
             $current = az apim api show `
               -g ${{ vars.APIM_RG }} `
               --service-name ${{ vars.APIM_SERVICE_NAME }} `
-              --api-id ${{ inputs.api_path }} `
+              --api-id ${{ inputs.api_path }}-api `
               --query "apiRevision" -o tsv
             if ($current -match '^\d+$') { $rev = [int]$current + 1 } else { $rev = 1 }
           } catch {
