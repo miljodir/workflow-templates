@@ -19,6 +19,11 @@ on:
         description: 'The relative path to the OpenAPI specification in the repo (e.g. ./api/openapi.json)'
         required: false
         type: string
+      promote_revision:
+        description: 'Whether to promote the new revision to be the current one (true/false)'
+        required: false
+        type: string
+        default: 'true'
 
 jobs:
   update-apim-api:
@@ -108,3 +113,14 @@ jobs:
             --api-version-set-id ${{ inputs.api_path }}-api-vs `
             --api-revision ${{ steps.revision.outputs.revision }} `
             --specification-format OpenApiJson
+
+      - name: Promote API spec in API management
+        if: ${{ inputs.promote_revision == 'true'}}
+        id: promote
+        shell: pwsh
+        run: |
+          az apim release create `
+            --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
+            --service-name ${{ vars.APIM_SERVICE_NAME }} `
+            --api-revision ${{ steps.revision.outputs.revision }} `
+            -g ${{ vars.APIM_RG }}
