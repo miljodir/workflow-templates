@@ -1,0 +1,58 @@
+name: "Update APIM API"
+on:
+  workflow_call:
+    inputs:
+      api_path:
+        description: 'The API path in APIM (e.g. myapi)'
+        required: true
+        type: string
+      api_version:
+        description: 'The API version (e.g. "v1", "test")'
+        required: true
+        type: string
+        default: 'v1'
+      specification_url:
+        description: 'The URL to the OpenAPI specification (e.g. https://raw.githubusercontent.com/...)'
+        required: false
+        type: string
+      specification_path:
+        description: 'The relative path to the OpenAPI specification in the repo (e.g. ./api/openapi.json)'
+        required: false
+        type: string
+
+jobs:
+  update-apim-api:
+    runs-on: ubuntu-latest
+    name: "Update API definition in API management"
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout repo
+        if: ${{ inputs.specification_path != '' }}
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ github.repository }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_OIDC_CLIENT_ID }}
+          tenant-id: ${{ vars.TENANT_ID }}
+          subscription-id: ${{ vars.APIM_SUBSCRIPTION_ID }}
+
+      - name: Update API spec in API management from URL
+        if: ${{ inputs.specification_url != '' }}
+        id: import-url
+        shell: pwsh
+        run: |
+          az apim api import -g ${{ vars.APIM_RG }} --service-name ${{ vars.AZURE_OIDC_CLIENT_ID }} --path ${{ inputs.api_path }} --specification-url ${{ inputs.specification_url }} --specification-format OpenApiJson --api-version ${{ inputs.api_version}}
+
+
+      - name: Update API spec in API management from path
+        if: ${{ inputs.specification_path != '' }}
+        id: import-path
+        shell: pwsh
+        run: |
+          az apim api import -g ${{ vars.APIM_RG }} --service-name ${{ vars.AZURE_OIDC_CLIENT_ID }} --path ${{ inputs.api_path }} --specification-path ${{ inputs.specification_path }} --specification-format OpenApiJson --api-version ${{ inputs.api_version}}
