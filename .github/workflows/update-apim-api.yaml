@@ -54,7 +54,12 @@ jobs:
               --service-name ${{ vars.APIM_SERVICE_NAME }} `
               --api-id ${{ inputs.api_path }}-api `
               --query "apiRevision" -o tsv
-            if ($current -match '^\d+$') { $rev = [int]$current + 1 } else { $rev = 1 }
+            # if current revision > 1, increment; otherwise keep it at 1
+            if ([int]$current -gt 1) {
+              $rev = [int]$current + 1
+            } else {
+              $rev = 1
+            }
           } catch {
             $rev = 1
           }
