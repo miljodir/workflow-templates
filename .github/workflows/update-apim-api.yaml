@@ -53,7 +53,7 @@ jobs:
             $desc = az apim api show `
               -g ${{ vars.APIM_RG }} `
               --service-name ${{ vars.APIM_SERVICE_NAME }} `
-              --api-id ${{ inputs.api_path }}-api `
+              --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
               --query "description" -o tsv
 
             if ([string]::IsNullOrEmpty($desc) -or $desc -eq "null") {
@@ -64,7 +64,7 @@ jobs:
               $current = az apim api show `
                 -g ${{ vars.APIM_RG }} `
                 --service-name ${{ vars.APIM_SERVICE_NAME }} `
-                --api-id ${{ inputs.api_path }}-api `
+                --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
                 --query "apiRevision" -o tsv
               if ($current -match '^\d+$') {
                 $rev = [int]$current + 1
@@ -85,7 +85,7 @@ jobs:
           az apim api import `
             -g ${{ vars.APIM_RG }} `
             --service-name ${{ vars.APIM_SERVICE_NAME }} `
-            --api-id ${{ inputs.api_path }}-api `
+            --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
             --path ${{ inputs.api_path }} `
             --specification-url ${{ inputs.specification_url }} `
             --api-version ${{ inputs.api_version }} `
@@ -101,7 +101,7 @@ jobs:
           az apim api import `
             -g ${{ vars.APIM_RG }} `
             --service-name ${{ vars.APIM_SERVICE_NAME }} `
-            --api-id ${{ inputs.api_path }}-api `
+            --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
             --path ${{ inputs.api_path }} `
             --specification-path ${{ inputs.specification_path }} `
             --api-version ${{ inputs.api_version }} `
