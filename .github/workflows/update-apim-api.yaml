@@ -68,10 +68,13 @@ jobs:
           az apim api import `
             -g ${{ vars.APIM_RG }} `
             --service-name ${{ vars.APIM_SERVICE_NAME }} `
+            --api-id ${{ inputs.api_path }}-api `
             --path ${{ inputs.api_path }} `
             --specification-url ${{ inputs.specification_url }} `
-            --specification-format OpenApiJson `
-            --api-revision ${{ steps.revision.outputs.revision }}
+            --api-version ${{ inputs.api_version }} `
+            --api-version-set-id ${{ inputs.api_path }}-api-vs `
+            --api-revision ${{ steps.revision.outputs.revision }} `
+            --specification-format OpenApiJson
 
       - name: Update API spec in API management from path
         if: ${{ inputs.specification_path != '' }}
@@ -81,7 +84,10 @@ jobs:
           az apim api import `
             -g ${{ vars.APIM_RG }} `
             --service-name ${{ vars.APIM_SERVICE_NAME }} `
+            --api-id ${{ inputs.api_path }}-api `
             --path ${{ inputs.api_path }} `
             --specification-path ${{ inputs.specification_path }} `
-            --specification-format OpenApiJson `
-            --api-revision ${{ steps.revision.outputs.revision }}
+            --api-version ${{ inputs.api_version }} `
+            --api-version-set-id ${{ inputs.api_path }}-api-vs `
+            --api-revision ${{ steps.revision.outputs.revision }} `
+            --specification-format OpenApiJson
