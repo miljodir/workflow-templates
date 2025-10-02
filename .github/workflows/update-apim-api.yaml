@@ -119,7 +119,7 @@ jobs:
         id: promote
         shell: pwsh
         run: |
-          az apim release create `
+          az apim api release create `
             --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
             --service-name ${{ vars.APIM_SERVICE_NAME }} `
             --api-revision ${{ steps.revision.outputs.revision }} `
