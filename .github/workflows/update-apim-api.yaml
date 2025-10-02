@@ -49,16 +49,28 @@ jobs:
         shell: pwsh
         run: |
           try {
-            $current = az apim api show `
+            # fetch description
+            $desc = az apim api show `
               -g ${{ vars.APIM_RG }} `
               --service-name ${{ vars.APIM_SERVICE_NAME }} `
               --api-id ${{ inputs.api_path }}-api `
-              --query "apiRevision" -o tsv
-            # if current revision > 1, increment; otherwise keep it at 1
-            if ([int]$current -gt 1) {
-              $rev = [int]$current + 1
-            } else {
+              --query "description" -o tsv
+
+            if ([string]::IsNullOrEmpty($desc) -or $desc -eq "null") {
+              # no existing description → first revision
               $rev = 1
+            } else {
+              # has description → bump previous revision
+              $current = az apim api show `
+                -g ${{ vars.APIM_RG }} `
+                --service-name ${{ vars.APIM_SERVICE_NAME }} `
+                --api-id ${{ inputs.api_path }}-api `
+                --query "apiRevision" -o tsv
+              if ($current -match '^\d+$') {
+                $rev = [int]$current + 1
+              } else {
+                $rev = 1
+              }
             }
           } catch {
             $rev = 1
