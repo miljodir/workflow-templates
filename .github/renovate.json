@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base"],
+  "labels": ["dependencies", "patch"],
+  "assigneesFromCodeOwners": true,
+  "prFooter": "## Changelog entry\n```\n Dependencies: Update action {{{depName}}} from {{{currentVersion}}} to {{{newVersion}}}\n```"
+}
