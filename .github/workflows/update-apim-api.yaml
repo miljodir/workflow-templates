@@ -36,7 +36,7 @@ jobs:
     steps:
       - name: Checkout repo
         if: ${{ inputs.specification_path != '' }}
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
         with:
           repository: ${{ github.repository }}
           token: ${{ secrets.GITHUB_TOKEN }}
