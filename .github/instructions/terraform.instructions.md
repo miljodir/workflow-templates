@@ -5,6 +5,16 @@ applyTo: ".github/workflows/*.yaml,.github/actions/**/*.yaml"
 excludeAgent: []
 ---
 
+## Important
+
+- When creating a pull request, the description MUST include the pull_request template defined in [the pull request template](/.github/pull_request_template.md).
+  - Make sure the description "TODO: Replace this inner text with a useful message
+for users of the affected modules!" is replaced with a relevant description
+  - The pull request MUST be labeled with one of the following labels:
+    - `patch` - for backward-compatible bug fixes
+    - `minor` - for backward-compatible new features
+    - `major` - for changes that break backward compatibility
+
 ## Specific to this repository
 
 - This repository creates reusable GitHub Actions Workflows for various tasks. The workflows used in other repositories within the Github Enterprise.
