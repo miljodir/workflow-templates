@@ -304,7 +304,7 @@ jobs:
             'src/${{ inputs.rootFolder }}/${{ matrix.directory }}'
 
       - name: Upload result artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "${{ matrix.directory || 'main' }}"
           path: output
@@ -319,7 +319,7 @@ jobs:
     name: "Comment on PR"
     steps:
       - name: Download artifact(s)
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
       - uses: actions/github-script@v8
@@ -379,7 +379,7 @@ jobs:
     runs-on: ubuntu-latest
     name: "Dispatch release event"
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         name: Download artifact(s)
         with:
           path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
