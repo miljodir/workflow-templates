@@ -42,7 +42,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Azure login
-        uses: azure/login@v2
+        uses: azure/login@v3
         with:
           client-id: ${{ vars.APIM_OIDC_CLIENT_ID }}
           tenant-id: ${{ vars.TENANT_ID }}
