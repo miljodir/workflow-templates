@@ -65,7 +65,7 @@ jobs:
         with:
           format: "json"
       - name: Condense to directory list
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         id: condense
         env:
           RAW_FILES: "${{ steps.raw-files.outputs.all }}"
@@ -109,7 +109,7 @@ jobs:
     name: "Module: ${{ matrix.directory }}"
     steps:
       - name: Detect previous version number
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         id: prev-version
         env:
           PACKAGE_NAME: "${{ matrix.directory || 'main' }}"
@@ -185,7 +185,7 @@ jobs:
           git push
 
       - name: Determine new version number
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         id: new-version
         env:
           PREV_VERSION: "${{ steps.prev-version.outputs.result }}"
@@ -215,7 +215,7 @@ jobs:
           echo '${{ steps.new-version.outputs.result }}' > output/new-version.txt
 
       - name: Extract changelog entry
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -322,7 +322,7 @@ jobs:
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
-      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -386,7 +386,7 @@ jobs:
 
       - name: Combine version information
         id: extract-releases
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const { readdir, readFile } = require('fs').promises;
@@ -403,7 +403,7 @@ jobs:
               })));
 
       - name: Dispatch create_release event
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           RELEASE_LIST: "${{ steps.extract-releases.outputs.result }}"
         with:
@@ -425,7 +425,7 @@ jobs:
 
       - name: Dispatch update_wiki event
         if: inputs.wiki-enabled == 'true'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           RELEASE_LIST: "${{ steps.extract-releases.outputs.result }}"
         with:
