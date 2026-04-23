@@ -1,6 +1,19 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:base", "helpers:pinGitHubActionDigests", "group:all"],
+  "packageRules": [
+    {
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["/^actions\\//"],
+      "pinDigests": false
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["/^miljodir\\/workflow-templates(?:$|\\/)/"],
+      "pinDigests": false,
+      "enabled": false
+    }
+  ],
   "labels": ["dependencies", "patch"],
   "assigneesFromCodeOwners": true,
   "prFooter": "## Changelog entry\n```\n Dependencies: Update action {{{depName}}} from {{{currentVersion}}} to {{{newVersion}}}\n```"
