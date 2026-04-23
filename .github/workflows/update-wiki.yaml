@@ -16,7 +16,7 @@ jobs:
           path: outputs
 
       - name: Checkout wiki
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        uses: actions/checkout@v6
         with:
           repository: ${{ github.repository }}.wiki
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -27,7 +27,7 @@ jobs:
       - name: Display structure of retrieved files
         run: ls -R
 
-      - uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+      - uses: actions/github-script@v9
         id: write-changes
         with:
           script: |
