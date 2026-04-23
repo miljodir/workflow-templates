@@ -60,12 +60,12 @@ jobs:
             exit 2
           fi
       - name: Get changed files
-        uses: Ana06/get-changed-files@v2.3.0
+        uses: Ana06/get-changed-files@25f79e676e7ea1868813e21465014798211fad8c # v2.3.0
         id: raw-files
         with:
           format: "json"
       - name: Condense to directory list
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         id: condense
         env:
           RAW_FILES: "${{ steps.raw-files.outputs.all }}"
@@ -109,7 +109,7 @@ jobs:
     name: "Module: ${{ matrix.directory }}"
     steps:
       - name: Detect previous version number
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         id: prev-version
         env:
           PACKAGE_NAME: "${{ matrix.directory || 'main' }}"
@@ -160,7 +160,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Auto documentation for ${{ matrix.directory }} reusable workflow
-        uses: tj-actions/auto-doc@v3
+        uses: tj-actions/auto-doc@b10ceedffd794ec29a8fa8700529f40c1b64a951 # v3
         if: ${{ github.event_name == 'pull_request' && inputs.type == 'actions' }}
         continue-on-error: true
         with:
@@ -185,7 +185,7 @@ jobs:
           git push
 
       - name: Determine new version number
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         id: new-version
         env:
           PREV_VERSION: "${{ steps.prev-version.outputs.result }}"
@@ -215,7 +215,7 @@ jobs:
           echo '${{ steps.new-version.outputs.result }}' > output/new-version.txt
 
       - name: Extract changelog entry
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -264,14 +264,14 @@ jobs:
       - name: Document example 'source' line
         if: ${{ inputs.type == 'terraform' && inputs.rootFolder == '/' }}
         run: |
-          source="${{ inputs.org }}/${{ github.repository }}"
+          source="miljodir/${{ github.repository }}"
           cat > output/documentation.md <<'EOF'
           # Module Location
           To use this module in your Terraform, use the below source value.
 
           ```hcl
           module "main" {
-            source = "git@github.com:${{ inputs.org }}/${{ github.repository }}?ref=${{ steps.new-version.outputs.result }}"
+            source = "git@github.com:${{ github.repository }}?ref=${{ steps.new-version.outputs.result }}"
 
             # also any inputs for the module (see below)
           }
@@ -304,7 +304,7 @@ jobs:
             'src/${{ inputs.rootFolder }}/${{ matrix.directory }}'
 
       - name: Upload result artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: "${{ matrix.directory || 'main' }}"
           path: output
@@ -319,10 +319,10 @@ jobs:
     name: "Comment on PR"
     steps:
       - name: Download artifact(s)
-        uses: actions/download-artifact@v7
+        uses: actions/download-artifact@v8
         with:
           path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
-      - uses: actions/github-script@v8
+      - uses: actions/github-script@v9
         with:
           script: |
             const { owner, repo } = context.repo;
@@ -379,14 +379,14 @@ jobs:
     runs-on: ubuntu-latest
     name: "Dispatch release event"
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         name: Download artifact(s)
         with:
           path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
 
       - name: Combine version information
         id: extract-releases
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const { readdir, readFile } = require('fs').promises;
@@ -403,7 +403,7 @@ jobs:
               })));
 
       - name: Dispatch create_release event
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           RELEASE_LIST: "${{ steps.extract-releases.outputs.result }}"
         with:
@@ -425,7 +425,7 @@ jobs:
 
       - name: Dispatch update_wiki event
         if: inputs.wiki-enabled == 'true'
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         env:
           RELEASE_LIST: "${{ steps.extract-releases.outputs.result }}"
         with:
