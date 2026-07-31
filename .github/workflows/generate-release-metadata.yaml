@@ -181,7 +181,7 @@ jobs:
           git checkout $ref
           git pull origin $ref
           git add '*${{ matrix.directory }}.md'
-          git commit -m "${{ matrix.directory }}: Update documentation for workflow" || echo "No changes detected"
+          git commit -m "${{ matrix.directory }}: Update documentation for workflow [skip ci]" || echo "No changes detected"
           git push
 
       - name: Determine new version number
