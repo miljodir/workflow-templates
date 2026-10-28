@@ -8,12 +8,15 @@ jobs:
     name: "Update Wiki"
     permissions:
       contents: write
+      actions: read
     steps:
-      - uses: dawidd6/action-download-artifact@27e4ae67c24b67d3b54bc6d6a45475be1e28031b # v26
+      - name: Download release artifacts
+        uses: actions/download-artifact@v8
         with:
-          workflow: unused
-          run_id: ${{ github.event.client_payload.run_id }}
-          path: outputs
+          run-id: ${{ github.event.client_payload.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # With a single artifact, download-artifact extracts without the per-artifact subfolder
+          path: ${{ github.event.client_payload.releases[1] && 'outputs' || format('outputs/{0}', github.event.client_payload.releases[0].module) }}
 
       - name: Checkout wiki
         uses: actions/checkout@v7
@@ -23,9 +26,9 @@ jobs:
           path: wiki
           fetch-depth: 0
       - name: Ensure wiki folder
-        run: "[ -d wiki/generated ] || mkdir wiki/generated"
-      - name: Display structure of retrieved files
-        run: ls -R
+        run: mkdir -p wiki/generated
+      - name: Display retrieved artifacts
+        run: ls -R outputs
 
       - uses: actions/github-script@v9
         id: write-changes
@@ -81,9 +84,22 @@ jobs:
 
       - name: Push changes to wiki
         working-directory: wiki
+        env:
+          COMMIT_MESSAGE: ${{ steps.write-changes.outputs.result }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add -A
-          git commit -m "${{ steps.write-changes.outputs.result }} [skip ci]"
-          git push
+          if git diff --cached --quiet; then
+            echo "No wiki changes to commit"
+            exit 0
+          fi
+          git commit -m "${COMMIT_MESSAGE} [skip ci]"
+          # Retry with rebase in case another release updated the wiki concurrently
+          for attempt in 1 2 3; do
+            git push && exit 0
+            echo "::warning::Push attempt $attempt failed, rebasing and retrying"
+            git pull --rebase
+          done
+          echo "::error::Failed to push wiki changes"
+          exit 1

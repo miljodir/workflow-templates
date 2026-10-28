@@ -21,34 +21,45 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
             const { sha, releases } = JSON.parse(process.env.CLIENT_PAYLOAD);
+            const rows = [];
 
-            for (const release of releases) {
-              let tagName = `${release.module}/${release.newVersion}`;
-
-              if (release.module == "main")
-              {
-                tagName = `${release.newVersion}`;
+            // Creating is idempotent so a failed run can be safely re-run
+            const createTag = async (tagName) => {
+              try {
+                await github.rest.git.createRef({ owner, repo, ref: `refs/tags/${tagName}`, sha });
+              } catch (error) {
+                if (error.status !== 422) throw error;
+                const { data: existing } = await github.rest.git.getRef({ owner, repo, ref: `tags/${tagName}` });
+                if (existing.object.sha !== sha) throw new Error(`Tag ${tagName} already exists on ${existing.object.sha}, expected ${sha}`);
+                console.log('Tag', tagName, 'already exists on', sha);
               }
+            };
 
-              let ref = `refs/tags/${tagName}`;
+            for (const { module, newVersion } of releases) {
+              const prefix = module === 'main' ? '' : `${module}/`;
+              const tagName = `${prefix}${newVersion}`;
+              const majorTagName = `${prefix}v${newVersion.split('.')[0]}`;
+
               console.log('Tagging', tagName, 'as', sha);
-              await github.rest.git.createRef({ owner, repo, ref, sha });
+              await createTag(tagName);
 
-              const releaseVersion = `${release.newVersion}`;
-              let module = `${release.module}` + "/v";
-              if (module == "main/v")
-              {
-                module = "v";
+              try {
+                console.log('Updating existing tag', majorTagName, 'as', sha);
+                await github.rest.git.updateRef({ owner, repo, ref: `tags/${majorTagName}`, sha, force: true });
+              } catch (error) {
+                if (error.status !== 422 && error.status !== 404) throw error;
+                console.log('Creating new tag', majorTagName, 'as', sha);
+                await createTag(majorTagName);
               }
 
-                try {
-                    ref = "tags/" + module + releaseVersion.split(".")[0]
-                    console.log('Updating existing tag', ref, 'as', sha);
-                    await github.rest.git.updateRef({ owner, repo, ref, sha });
-                  }
-                catch {
-                    ref = "refs/tags/" + module + releaseVersion.split(".")[0]
-                    console.log('Creating new tag', ref, 'as', sha);
-                    await github.rest.git.createRef({ owner, repo, ref, sha });
-                  }
-              }
+              rows.push([module, tagName, majorTagName]);
+            }
+
+            await core.summary
+              .addHeading('Created releases')
+              .addRaw(`Commit: ${sha}`, true)
+              .addTable([
+                [{ data: 'Module', header: true }, { data: 'Tag', header: true }, { data: 'Major tag', header: true }],
+                ...rows,
+              ])
+              .write();

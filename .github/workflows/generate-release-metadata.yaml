@@ -1,7 +1,8 @@
 name: Generate release metadata
 concurrency:
-  group: ${{ github.repository }}-${{ github.head_ref }}
-  cancel-in-progress: true
+  # Merge runs get their own group and are never cancelled, so a release is never lost
+  group: ${{ github.repository }}-${{ github.event_name }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 on:
   workflow_call:
     inputs:
@@ -36,6 +37,7 @@ jobs:
     outputs:
       directories: ${{ steps.condense.outputs.result }}
       release-type: ${{ steps.check_pr_label.outputs.release-type}}
+      changelog: ${{ steps.changelog.outputs.result }}
       is-merge-event: >-
         ${{ github.event_name == 'pull_request_target'
          && github.event.action == 'closed'
@@ -44,19 +46,20 @@ jobs:
       - name: Check PR labels
         id: check_pr_label
         env:
-          PR_URL: ${{github.event.pull_request.html_url}} #TODO: check if needed (we don't checkout the code..)
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          # Fetched from the API (not the event payload) so re-running the job picks up label changes
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LABELS=$(gh pr view $PR_URL --json labels --jq '.labels[]| select((.name=="minor") or (.name=="major") or (.name=="patch") or (.name=="no-release")) |.name')
+          LABELS=$(gh pr view "$PR_URL" --json labels --jq '.labels[]| select((.name=="minor") or (.name=="major") or (.name=="patch") or (.name=="no-release")) |.name')
           NUMBER_OF_LABELS=$(echo "$LABELS" |wc -w)
           if [ "$NUMBER_OF_LABELS" -eq "1" ] ; then
             echo "Found: $LABELS"
-            echo "release-type=$LABELS" >> $GITHUB_OUTPUT
+            echo "release-type=$LABELS" >> "$GITHUB_OUTPUT"
           elif [ "$NUMBER_OF_LABELS" -gt "1" ] ; then
-            echo "::error ::Too many release type labels: $( echo $LABELS | tr '\n' ' ' )"
+            echo "::error title=Too many release labels::Found $( echo $LABELS | tr '\n' ' ')- keep exactly one of patch/minor/major/no-release on the pull request."
             exit 1
           else
-            echo "::error ::No release type labels found(patch/minor/major/no-release)"
+            echo "::error title=Missing release label::Add exactly one of the labels patch/minor/major/no-release to the pull request."
             exit 2
           fi
       - name: Get changed files
@@ -93,9 +96,35 @@ jobs:
               include: directories.map(directory => ({ directory })),
             };
 
+      # Validated once here (instead of per module) so a missing changelog fails fast
+      - name: Extract changelog entry
+        id: changelog
+        if: ${{ steps.condense.outputs.result != '{}' && steps.check_pr_label.outputs.release-type != 'no-release' }}
+        uses: actions/github-script@v9
+        with:
+          result-encoding: string
+          script: |
+            const { owner, repo } = context.repo;
+            const { data: prInfo } = await github.rest.pulls.get({
+              owner, repo,
+              pull_number: context.issue.number,
+            });
+
+            const changelogEntry = (((prInfo.body || '')
+              .split(/^#+ ?/m)
+              .find(x => x.startsWith('Changelog'))
+              || '').split(/^```/m)[1] || '').trim();
+            if (!changelogEntry)
+              core.setFailed(`'## Changelog entry' section with a \`\`\` code block was not found in the PR description. Please add it back and save the description.`);
+            else if (changelogEntry.match(/^TODO:/m))
+              core.setFailed(`'Changelog entry' in the PR description still contains the 'TODO' placeholder. Replace it with a useful message and save the description.`);
+            else
+              console.log('Found changelog entry:\n' + changelogEntry);
+            return changelogEntry;
+
   plan:
     needs: detect
-    if: ${{ needs.detect.outputs.directories != '{}' }}
+    if: ${{ needs.detect.outputs.directories != '{}' && needs.detect.outputs.release-type != 'no-release' }}
     permissions:
       contents: write
       pull-requests: read
@@ -107,6 +136,9 @@ jobs:
       job-total: ${{ strategy.job-total }}
       name: "${{ matrix.directory || 'main' }}"
     name: "Module: ${{ matrix.directory }}"
+    env:
+      # Terraform docs are only consumed by the wiki update after merge, so skip them on PR runs
+      RENDER_WIKI_DOCS: ${{ inputs.wiki-enabled == 'true' && inputs.type == 'terraform' && needs.detect.outputs.is-merge-event == 'true' }}
     steps:
       - name: Detect previous version number
         uses: actions/github-script@v9
@@ -133,24 +165,20 @@ jobs:
 
             const result = await github.graphql(query, { owner, repo,
               refPrefix: refPrefix,
-              first: 1,
+              first: 100,
             });
 
-            const prevNode = result.repository.refs.edges[0];
-            let prevVer = prevNode ? prevNode.node.name : '0.0.0';
+            // Ignore floating major tags (e.g. 'v1') and other non-semver tags, then pick the highest version
+            const semver = /^\d+\.\d+\.\d+$/;
+            const versions = result.repository.refs.edges
+              .map(edge => edge.node.name)
+              .filter(name => semver.test(name))
+              .sort((a, b) => {
+                const [x, y] = [a, b].map(v => v.split('.').map(Number));
+                return (y[0] - x[0]) || (y[1] - x[1]) || (y[2] - x[2]);
+              });
+            const prevVer = versions[0] || '0.0.0';
             console.log('Found previous version', prevVer);
-
-            if (prevVer.startsWith("v"))
-            {
-            console.log("Newest tag starts with 'v', attempting to fetch second newest tag...")
-            const result = await github.graphql(query, { owner, repo,
-              refPrefix: refPrefix,
-              first: 2,
-            });
-            const prevNode = result.repository.refs.edges[1];
-            prevVer = prevNode ? prevNode.node.name : '0.0.0';
-            console.log('Found previous version', prevVer);
-            }
             return prevVer;
           result-encoding: string
 
@@ -173,15 +201,16 @@ jobs:
         continue-on-error: true
         env:
           ref: ${{ github.head_ref }}
+          DIRECTORY: ${{ matrix.directory }}
         shell: bash
         run: |
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git config pull.rebase false
-          git checkout $ref
-          git pull origin $ref
-          git add '*${{ matrix.directory }}.md'
-          git commit -m "${{ matrix.directory }}: Update documentation for workflow [skip ci]" || echo "No changes detected"
+          git checkout "$ref"
+          git pull origin "$ref"
+          git add "*${DIRECTORY}.md"
+          git commit -m "${DIRECTORY}: Update documentation for workflow [skip ci]" || echo "No changes detected"
           git push
 
       - name: Determine new version number
@@ -205,47 +234,22 @@ jobs:
             return numbers.join('.');
           result-encoding: string
 
-      - name: Store version numbers
+      - name: Store version numbers and changelog
         env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          PREV_VERSION: ${{ steps.prev-version.outputs.result }}
+          NEW_VERSION: ${{ steps.new-version.outputs.result }}
+          CHANGELOG: ${{ needs.detect.outputs.changelog }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           mkdir output
-          echo '${{ steps.prev-version.outputs.result }}' > output/previous-version.txt
-          echo '${{ steps.new-version.outputs.result }}' > output/new-version.txt
-
-      - name: Extract changelog entry
-        uses: actions/github-script@v9
-        with:
-          script: |
-            const { owner, repo } = context.repo;
-            const { data: prInfo } = await github.rest.pulls.get({
-              owner, repo,
-              pull_number: context.issue.number,
-            });
-            console.log('Found PR body:|');
-            console.log(prInfo.body);
-
-            const changelogEntry = ((prInfo.body
-              .split(/^#+ ?/m)
-              .find(x => x.startsWith('Changelog'))
-              || '').split(/^```/m)[1] || '').trim();
-            if (!changelogEntry)
-              throw `'Changelog' section not found in PR body! Please add it back.`;
-            if (changelogEntry.match(/^TODO:/m))
-              throw `'Changelog' section needs proper text, instead of 'TODO'`;
-
-            const { writeFile } = require('fs').promises;
-            await writeFile('output/changelog.md', `
-            * PR [#${ prInfo.number }](${ prInfo.html_url }) - ${ prInfo.title }
-
-            \`\`\`
-            ${changelogEntry}
-            \`\`\`
-            `.trimLeft(), { encoding: 'utf-8' })
+          echo "$PREV_VERSION" > output/previous-version.txt
+          echo "$NEW_VERSION" > output/new-version.txt
+          printf '* PR [#%s](%s) - %s\n\n```\n%s\n```\n' "$PR_NUMBER" "$PR_URL" "$PR_TITLE" "$CHANGELOG" > output/changelog.md
 
       - name: Document example 'source' line
-        if: ${{ inputs.type == 'terraform' && inputs.rootFolder != '/' }}
+        if: ${{ env.RENDER_WIKI_DOCS == 'true' && inputs.rootFolder != '/' }}
         run: |
           cat > output/documentation.md <<'EOF'
           # Module Location
@@ -262,9 +266,8 @@ jobs:
           EOF
 
       - name: Document example 'source' line
-        if: ${{ inputs.type == 'terraform' && inputs.rootFolder == '/' }}
+        if: ${{ env.RENDER_WIKI_DOCS == 'true' && inputs.rootFolder == '/' }}
         run: |
-          source="miljodir/${{ github.repository }}"
           cat > output/documentation.md <<'EOF'
           # Module Location
           To use this module in your Terraform, use the below source value.
@@ -280,28 +283,33 @@ jobs:
           EOF
 
       - name: Install terraform docs
-        if: ${{ inputs.type == 'terraform'}}
+        if: ${{ env.RENDER_WIKI_DOCS == 'true' }}
+        env:
+          TERRAFORM_DOCS_VERSION: v0.20.0
         run: |
-          wget https://github.com/terraform-docs/terraform-docs/releases/download/v0.16.0/terraform-docs-v0.16.0-linux-amd64.tar.gz \
+          wget "https://github.com/terraform-docs/terraform-docs/releases/download/${TERRAFORM_DOCS_VERSION}/terraform-docs-${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz" \
             --output-document - \
             --progress dot:mega \
-          | tar -xvz
+          | tar -xz
 
       - name: Clone repository for analysis
-        if: ${{ inputs.type == 'terraform'}}
+        if: ${{ env.RENDER_WIKI_DOCS == 'true' }}
         uses: actions/checkout@v7
         with:
           ref: ${{ github.sha }}
           path: src
+          persist-credentials: false
 
       - name: Render terraform docs
-        if: ${{ inputs.type == 'terraform'}}
+        if: ${{ env.RENDER_WIKI_DOCS == 'true' }}
+        env:
+          MODULE_PATH: src/${{ inputs.rootFolder }}/${{ matrix.directory }}
         run: |
           echo '# Module Attributes' >> output/documentation.md
           ./terraform-docs markdown table \
             --output-file "$(pwd)"/output/documentation.md \
             --sort-by required \
-            'src/${{ inputs.rootFolder }}/${{ matrix.directory }}'
+            "$MODULE_PATH"
 
       - name: Upload result artifacts
         uses: actions/upload-artifact@v7
@@ -312,22 +320,31 @@ jobs:
 
   comment:
     needs: [detect, plan]
-    if: needs.detect.outputs.is-merge-event == 'false'
+    # Also runs when 'plan' is skipped (no-release / no changed modules) so a stale release plan is replaced
+    if: >-
+      always()
+      && needs.detect.result == 'success'
+      && needs.detect.outputs.is-merge-event == 'false'
+      && (needs.plan.result == 'success' || needs.plan.result == 'skipped')
     permissions:
       pull-requests: write
     runs-on: ubuntu-latest
     name: "Comment on PR"
     steps:
       - name: Download artifact(s)
+        if: needs.plan.result == 'success'
         uses: actions/download-artifact@v8
         with:
           path: ${{needs.plan.outputs.job-total == 1 && format('outputs/{0}', needs.plan.outputs.name) || 'outputs' }} 
       - uses: actions/github-script@v9
+        env:
+          RELEASE_TYPE: ${{ needs.detect.outputs.release-type }}
         with:
           script: |
             const { owner, repo } = context.repo;
             const { number: issue_number } = context.issue;
             const { readdir, readFile } = require('fs').promises;
+            const { existsSync } = require('fs');
             const utf8 = { encoding: 'utf-8' };
 
             const lines = [
@@ -338,8 +355,10 @@ jobs:
             ];
             const sections = [];
 
-            for (const folder of await readdir('outputs', { withFileTypes: true })) {
-              if (!folder.isDirectory()) continue;
+            const folders = existsSync('outputs')
+              ? (await readdir('outputs', { withFileTypes: true })).filter(x => x.isDirectory())
+              : [];
+            for (const folder of folders) {
               const readText = (name) => readFile(name, utf8).then(x => x.trim());
 
               lines.push('| '+[
@@ -351,31 +370,44 @@ jobs:
               sections.push(`<details><summary>Changelog preview: ${folder.name}</summary>\n\n${await readText(`outputs/${folder.name}/changelog.md`)}\n</details>`);
             }
 
+            if (folders.length === 0) {
+              const reason = process.env.RELEASE_TYPE === 'no-release'
+                ? 'the pull request is labeled `no-release`'
+                : 'no releasable modules were changed';
+              lines.splice(2);
+              lines.push(`No release will be created when this pull request is merged, because ${reason}.`);
+            }
+
             const finalBody = [lines.join('\n'), ...sections].join('\n\n');
 
-            const {data: allComments} = await github.rest.issues.listComments({ issue_number, owner, repo });
+            const allComments = await github.paginate(github.rest.issues.listComments, { issue_number, owner, repo, per_page: 100 });
             const ourComments = allComments
               .filter(comment => comment.user.login === 'github-actions[bot]')
               .filter(comment => comment.body.startsWith(lines[0]+'\n'));
 
-            const latestComment = ourComments.slice(-1)[0];
-            if (latestComment && latestComment.body === finalBody) {
+            // Update the oldest existing release plan comment in place to avoid notification noise
+            const [existingComment, ...duplicateComments] = ourComments;
+            if (!existingComment) {
+              const {data: newComment} = await github.rest.issues.createComment({ issue_number, owner, repo, body: finalBody });
+              console.log('Posted comment', newComment.id, '@', newComment.html_url);
+            } else if (existingComment.body === finalBody) {
               console.log('Existing comment is already up to date.');
-              return;
+            } else {
+              await github.rest.issues.updateComment({ comment_id: existingComment.id, owner, repo, body: finalBody });
+              console.log('Updated comment', existingComment.id, '@', existingComment.html_url);
             }
 
-            const {data: newComment} = await github.rest.issues.createComment({ issue_number, owner, repo, body: finalBody });
-            console.log('Posted comment', newComment.id, '@', newComment.html_url);
-            // Delete all our previous comments
-            for (const comment of ourComments) {
-              if (comment.id === newComment.id) continue;
-              console.log('Deleting previous PR comment from', comment.created_at);
+            // Clean up duplicates left behind by the previous delete-and-repost behaviour
+            for (const comment of duplicateComments) {
+              console.log('Deleting duplicate PR comment from', comment.created_at);
               await github.rest.issues.deleteComment({ comment_id: comment.id, owner, repo });
             }
 
   trigger-release:
     needs: [detect, plan]
     if: needs.detect.outputs.is-merge-event == 'true'
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     name: "Dispatch release event"
     steps:
@@ -402,45 +434,35 @@ jobs:
                 newVersion: await readText(`outputs/${folder.name}/new-version.txt`),
               })));
 
-      - name: Dispatch create_release event
+      - name: Dispatch release events
         uses: actions/github-script@v9
         env:
           RELEASE_LIST: "${{ steps.extract-releases.outputs.result }}"
+          WIKI_ENABLED: ${{ inputs.wiki-enabled }}
         with:
           github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             const payload = {
-              run_id: "${{ github.run_id }}",
+              run_id: context.runId.toString(),
               sha: context.sha,
               releases: JSON.parse(process.env.RELEASE_LIST),
             };
             console.log('Event payload:', JSON.stringify(payload, null, 2));
 
-            const { owner, repo } = context.repo;
-            await github.rest.repos.createDispatchEvent({
-              owner, repo,
-              event_type: 'create_release',
-              client_payload: payload,
-            });
-
-      - name: Dispatch update_wiki event
-        if: inputs.wiki-enabled == 'true'
-        uses: actions/github-script@v9
-        env:
-          RELEASE_LIST: "${{ steps.extract-releases.outputs.result }}"
-        with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
-          script: |
-            const payload = {
-              run_id: "${{ github.run_id }}",
-              sha: context.sha,
-              releases: JSON.parse(process.env.RELEASE_LIST),
-            };
-            console.log('Event payload:', JSON.stringify(payload, null, 2));
+            const eventTypes = ['create_release'];
+            if (process.env.WIKI_ENABLED === 'true') eventTypes.push('update_wiki');
 
             const { owner, repo } = context.repo;
-            await github.rest.repos.createDispatchEvent({
-              owner, repo,
-              event_type: 'update_wiki',
-              client_payload: payload,
-            });
+            for (const event_type of eventTypes) {
+              console.log('Dispatching', event_type);
+              await github.rest.repos.createDispatchEvent({ owner, repo, event_type, client_payload: payload });
+            }
+
+            await core.summary
+              .addHeading('Dispatched release events')
+              .addList(eventTypes)
+              .addTable([
+                [{ data: 'Module', header: true }, { data: 'Previous version', header: true }, { data: 'New version', header: true }],
+                ...payload.releases.map(r => [r.module, r.prevVersion, r.newVersion]),
+              ])
+              .write();
