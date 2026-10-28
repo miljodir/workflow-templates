@@ -8,7 +8,7 @@ on:
         type: string
       api_version:
         description: 'The API version (e.g. "v1", "test")'
-        required: true
+        required: false
         type: string
         default: 'v1'
       specification_url:
@@ -30,16 +30,38 @@ jobs:
     runs-on: ubuntu-latest
     name: "Update API definition in API management"
     environment: "apim"
+    # Serialize updates per API so concurrent runs don't compute the same revision number
+    concurrency:
+      group: apim-${{ github.repository }}-${{ inputs.api_path }}-${{ inputs.api_version }}
+      cancel-in-progress: false
     permissions:
       contents: read
       id-token: write
+    env:
+      API_ID: ${{ inputs.api_path }}-api-${{ inputs.api_version }}
+      API_PATH: ${{ inputs.api_path }}
+      API_VERSION: ${{ inputs.api_version }}
+      SPEC_URL: ${{ inputs.specification_url }}
+      SPEC_PATH: ${{ inputs.specification_path }}
+      APIM_RG: ${{ vars.APIM_RG }}
+      APIM_SERVICE_NAME: ${{ vars.APIM_SERVICE_NAME }}
     steps:
+      - name: Validate inputs
+        shell: bash
+        run: |
+          if [ -n "$SPEC_URL" ] && [ -n "$SPEC_PATH" ]; then
+            echo "::error title=Invalid inputs::Set only one of 'specification_url' or 'specification_path'."
+            exit 1
+          elif [ -z "$SPEC_URL" ] && [ -z "$SPEC_PATH" ]; then
+            echo "::error title=Invalid inputs::Set one of 'specification_url' or 'specification_path'."
+            exit 1
+          fi
+
       - name: Checkout repo
         if: ${{ inputs.specification_path != '' }}
         uses: actions/checkout@v7
         with:
-          repository: ${{ github.repository }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: false
 
       - name: Azure login
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3
@@ -48,79 +70,70 @@ jobs:
           tenant-id: ${{ vars.TENANT_ID }}
           subscription-id: ${{ vars.APIM_SUBSCRIPTION_ID }}
 
-      # determine next revision: if API exists increment, otherwise start at 1
+      # determine next revision: if API exists with a description increment, otherwise start at 1
       - name: Determine API revision
         id: revision
         shell: pwsh
         run: |
-          try {
-            # fetch description
-            $desc = az apim api show `
-              -g ${{ vars.APIM_RG }} `
-              --service-name ${{ vars.APIM_SERVICE_NAME }} `
-              --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
-              --query "description" -o tsv
+          $api = az apim api show `
+            -g $env:APIM_RG `
+            --service-name $env:APIM_SERVICE_NAME `
+            --api-id $env:API_ID `
+            --query "{description: description, apiRevision: apiRevision}" -o json 2>$null | ConvertFrom-Json
 
-            if ([string]::IsNullOrEmpty($desc) -or $desc -eq "null") {
-              # no existing description → first revision
-              $rev = 1
-            } else {
-              # has description → bump previous revision
-              $current = az apim api show `
-                -g ${{ vars.APIM_RG }} `
-                --service-name ${{ vars.APIM_SERVICE_NAME }} `
-                --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
-                --query "apiRevision" -o tsv
-              if ($current -match '^\d+$') {
-                $rev = [int]$current + 1
-              } else {
-                $rev = 1
-              }
-            }
-          } catch {
+          if ($LASTEXITCODE -ne 0 -or -not $api -or [string]::IsNullOrEmpty($api.description)) {
+            $rev = 1
+          } elseif ($api.apiRevision -match '^\d+$') {
+            $rev = [int]$api.apiRevision + 1
+          } else {
             $rev = 1
           }
-          echo "revision=$rev" >> $env:GITHUB_OUTPUT
+          Write-Output "Using API revision $rev"
+          "revision=$rev" >> $env:GITHUB_OUTPUT
+          # 'az apim api show' fails when the API does not exist yet, which is expected
+          exit 0
 
-      - name: Update API spec in API management from URL
-        if: ${{ inputs.specification_url != '' }}
-        id: import-url
+      - name: Import API spec to API management
+        id: import
         shell: pwsh
+        env:
+          REVISION: ${{ steps.revision.outputs.revision }}
         run: |
+          $source = if ($env:SPEC_URL) { @('--specification-url', $env:SPEC_URL) } else { @('--specification-path', $env:SPEC_PATH) }
           az apim api import `
-            -g ${{ vars.APIM_RG }} `
-            --service-name ${{ vars.APIM_SERVICE_NAME }} `
-            --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
-            --path ${{ inputs.api_path }} `
-            --specification-url ${{ inputs.specification_url }} `
-            --api-version ${{ inputs.api_version }} `
-            --api-version-set-id ${{ inputs.api_path }}-api-vs `
-            --api-revision ${{ steps.revision.outputs.revision }} `
-            --specification-format OpenApiJson
-
-      - name: Update API spec in API management from path
-        if: ${{ inputs.specification_path != '' }}
-        id: import-path
-        shell: pwsh
-        run: |
-          az apim api import `
-            -g ${{ vars.APIM_RG }} `
-            --service-name ${{ vars.APIM_SERVICE_NAME }} `
-            --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
-            --path ${{ inputs.api_path }} `
-            --specification-path ${{ inputs.specification_path }} `
-            --api-version ${{ inputs.api_version }} `
-            --api-version-set-id ${{ inputs.api_path }}-api-vs `
-            --api-revision ${{ steps.revision.outputs.revision }} `
+            -g $env:APIM_RG `
+            --service-name $env:APIM_SERVICE_NAME `
+            --api-id $env:API_ID `
+            --path $env:API_PATH `
+            @source `
+            --api-version $env:API_VERSION `
+            --api-version-set-id "$($env:API_PATH)-api-vs" `
+            --api-revision $env:REVISION `
             --specification-format OpenApiJson
 
       - name: Promote API spec in API management
         if: ${{ inputs.promote_revision == 'true'}}
         id: promote
         shell: pwsh
+        env:
+          REVISION: ${{ steps.revision.outputs.revision }}
         run: |
           az apim api release create `
-            --api-id ${{ inputs.api_path }}-api-${{inputs.api_version}} `
-            --service-name ${{ vars.APIM_SERVICE_NAME }} `
-            --api-revision ${{ steps.revision.outputs.revision }} `
-            -g ${{ vars.APIM_RG }}
+            --api-id $env:API_ID `
+            --service-name $env:APIM_SERVICE_NAME `
+            --api-revision $env:REVISION `
+            -g $env:APIM_RG
+
+      - name: Write job summary
+        if: ${{ success() }}
+        shell: bash
+        env:
+          REVISION: ${{ steps.revision.outputs.revision }}
+          PROMOTED: ${{ inputs.promote_revision }}
+        run: |
+          {
+            echo "### APIM API updated"
+            echo "| API ID | Path | Version | Revision | Promoted | Source |"
+            echo "|--|--|--|--|--|--|"
+            echo "| \`$API_ID\` | \`$API_PATH\` | $API_VERSION | $REVISION | $PROMOTED | ${SPEC_URL:-$SPEC_PATH} |"
+          } >> "$GITHUB_STEP_SUMMARY"
