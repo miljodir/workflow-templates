@@ -1,0 +1,13 @@
+# Configuration for actionlint (https://github.com/rhysd/actionlint/blob/main/docs/config.md)
+paths:
+  .github/workflows/generate-release-metadata.yaml:
+    ignore:
+      # 'Check PR labels': `echo $LABELS | tr ...` intentionally relies on word splitting to print the labels on one line
+      - 'shellcheck reported issue in this script: SC2086:info:7:62:'
+      # 'Store version numbers and changelog': the backticks in the printf format are literal Markdown code fences
+      - 'shellcheck reported issue in this script: SC2016:info:4:8:'
+  .github/workflows/self-tagging.yaml:
+    ignore:
+      # The string input is passed a YAML boolean, which GitHub coerces to the string "false" as intended.
+      # actionlint reports this even when the value is quoted, so it is ignored instead of rewritten.
+      - 'input "wiki-enabled" is typed as string by reusable workflow'
