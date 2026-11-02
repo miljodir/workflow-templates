@@ -49,7 +49,7 @@ jobs:
       - name: Run actionlint
         env:
           # Prints each finding as a GitHub error annotation
-          ACTIONLINT_FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}},title=actionlint ({{$err.Kind}})::{{$err.Message}}{{"\n"}}{{end}}'
+          ACTIONLINT_FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}},title=actionlint ({{$err.Kind}})::{{$err.Message}}\n{{end}}'
         run: |
           actionlint -version
           actionlint -format "$ACTIONLINT_FORMAT"
