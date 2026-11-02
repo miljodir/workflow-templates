@@ -8,6 +8,7 @@ on:
     paths:
       - .github/workflows/**
       - "!.github/workflows/self-tagging.yaml"
+      - "!.github/workflows/actionlint.yaml"
   pull_request_target:
     types: [closed]
     branches:
@@ -15,6 +16,7 @@ on:
     paths:
       - .github/workflows/**
       - "!.github/workflows/self-tagging.yaml"
+      - "!.github/workflows/actionlint.yaml"
 
   repository_dispatch:
     types: [create_release]

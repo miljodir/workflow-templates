@@ -1,0 +1,55 @@
+name: Actionlint
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/**
+      - .github/actions/**
+      - .github/actionlint.yaml
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/**
+      - .github/actions/**
+      - .github/actionlint.yaml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  actionlint:
+    name: Lint workflows
+    runs-on: ubuntu-latest
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install actionlint
+        run: |
+          base_url="https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}"
+          archive="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          checksums="actionlint_${ACTIONLINT_VERSION}_checksums.txt"
+          cd "$RUNNER_TEMP"
+          curl -fsSLO "${base_url}/${archive}"
+          curl -fsSLO "${base_url}/${checksums}"
+          grep " ${archive}\$" "$checksums" | sha256sum --check --strict -
+          tar -xzf "$archive" actionlint
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      # shellcheck is preinstalled on ubuntu runners and is picked up automatically by actionlint
+      - name: Run actionlint
+        env:
+          # Prints each finding as a GitHub error annotation
+          ACTIONLINT_FORMAT: '{{range $err := .}}::error file={{$err.Filepath}},line={{$err.Line}},col={{$err.Column}},title=actionlint ({{$err.Kind}})::{{$err.Message}}{{"\n"}}{{end}}'
+        run: |
+          actionlint -version
+          actionlint -format "$ACTIONLINT_FORMAT"
