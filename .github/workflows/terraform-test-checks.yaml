@@ -1,0 +1,81 @@
+name: Reusable module test checks
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/terraform-test.yaml
+      - .github/workflows/terraform-test-checks.yaml
+      - tests/terraform-test/**
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/terraform-test.yaml
+      - .github/workflows/terraform-test-checks.yaml
+      - tests/terraform-test/**
+
+permissions:
+  contents: read
+
+jobs:
+  negative-regressions:
+    name: Negative guards (${{ matrix.engine }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [terraform, opentofu]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        if: matrix.engine == 'terraform'
+        with:
+          terraform_version: "1.7.0"
+          terraform_wrapper: false
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2
+        if: matrix.engine == 'opentofu'
+        with:
+          tofu_version: "1.13.9"
+          tofu_wrapper: false
+      - name: Install regression YAML reader
+        run: python -m pip install --disable-pip-version-check -r tests/terraform-test/regression/requirements.txt
+      - name: Exercise actual workflow guard scripts
+        env:
+          CHECK_ENGINE: ${{ matrix.engine == 'opentofu' && 'tofu' || 'terraform' }}
+        run: python tests/terraform-test/regression/check_guards.py
+
+  plain:
+    uses: ./.github/workflows/terraform-test.yaml
+    with:
+      working-directory: tests/terraform-test/plain
+      terraform-version: "1.7.0"
+      opentofu-version: "1.13.9"
+  fixtures:
+    uses: ./.github/workflows/terraform-test.yaml
+    with:
+      working-directory: tests/terraform-test/prepared
+      test-directory: checks
+      prepare-script: prepare.sh
+      test-override-directory: checks/overrides
+      opentofu-version: "1.13.9"
+  json:
+    uses: ./.github/workflows/terraform-test.yaml
+    with:
+      working-directory: tests/terraform-test/json
+      terraform-version: "1.7.0"
+      opentofu-version: "1.13.9"
+  tofu-only:
+    uses: ./.github/workflows/terraform-test.yaml
+    with:
+      engine: opentofu
+      working-directory: tests/terraform-test/tofu-only
+      opentofu-version: "1.13.9"
+  sensitive-output:
+    uses: ./.github/workflows/terraform-test.yaml
+    with:
+      working-directory: tests/terraform-test/sensitive-output
+      test-override-directory: tests/overrides
+      opentofu-version: "1.13.9"
