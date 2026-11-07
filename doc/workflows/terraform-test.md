@@ -28,16 +28,19 @@ concurrency:
 
 jobs:
   test:
-    uses: miljodir/workflow-templates/.github/workflows/terraform-test.yaml@<full-commit-sha>
+    uses: miljodir/workflow-templates/.github/workflows/terraform-test.yaml@terraform-test/v0
     with:
       terraform-version: "1.x"
-      opentofu-version: "1.13.9"
+      opentofu-version: "1.x"
 ```
 
-Use the PR's full commit SHA before merge. Releases follow this repository's
-workflow-specific tags: `terraform-test/<version>` and the floating
-`terraform-test/v<major>` tag. A full SHA or version tag is preferable for
-reproducibility; do not use a version tag until it actually exists.
+`1.x` floats to the latest stable OpenTofu 1.x release; use a full version
+such as `1.13.9` for reproducible runs.
+
+`terraform-test/v0` is a moving major tag that tracks the latest `0.x`
+release; pre-1.0 releases may include breaking changes. For a fixed reference, pin a version tag such as
+`terraform-test/0.1.0`, or a full commit SHA for the strongest
+reproducibility.
 
 No secrets are declared or required. Do **not** add `secrets: inherit`, SSH keys,
 cloud credentials, `id-token: write`, `pull_request_target`, or a self-hosted
@@ -129,7 +132,7 @@ fixtures **before** initialization:
     with:
       prepare-script: scripts/prepare-test-fixtures.sh
       test-override-directory: tests/overrides
-      opentofu-version: "1.13.9"
+      opentofu-version: "1.x"
 ```
 
 The script runs with Bash `-euo pipefail` from the copied module directory.
