@@ -232,5 +232,13 @@ These are guard-script regression tests, not intentionally failing workflow-call
 jobs; the existing positive callers continue to verify workflow wiring and
 engine-specific step conditions. The regression jobs use read-only permissions
 and do not expose any failure-suppression input to consumers.
+
+The harness also checks the actual job/step structure: native tests cannot be
+conditional, failures cannot be suppressed, explicit directory validation must
+map the nonempty input and precede initialization, and an explicit Actions Bash
+shell must guarantee pipeline failure propagation. In-memory mutations disabling
+either guard, removing the explicit shell, or breaking the directory input
+mapping must be rejected by the same structural checker. These contract checks
+intentionally require review when changing workflow wiring.
 The sensitive-output fixture uses a mocked `random_password`, whose root output
 needs a `sensitive = true` override for OpenTofu validation and both engines' tests.
