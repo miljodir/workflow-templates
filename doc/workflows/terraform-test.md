@@ -34,8 +34,8 @@ jobs:
       opentofu-version: "1.13.9"
 ```
 
-`terraform-test/v0` is a moving major tag that follows compatible `0.x`
-releases. For a fixed reference, pin a version tag such as
+`terraform-test/v0` is a moving major tag that tracks the latest `0.x`
+release; pre-1.0 releases may include breaking changes. For a fixed reference, pin a version tag such as
 `terraform-test/0.1.0`, or a full commit SHA for the strongest
 reproducibility.
 
