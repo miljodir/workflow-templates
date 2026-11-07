@@ -55,15 +55,15 @@ For multiple modules or engine versions, use caller-level matrix jobs with
 
 <!-- AUTO-DOC-INPUT:START - Do not remove or modify this section -->
 
-| Input | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `engine` | string | false | `both` | `both`, `terraform`, or `opentofu`; other values fail. |
-| `terraform-version` | string | false | `1.x` | Terraform setup version constraint; mock tests require >= 1.7. |
-| `opentofu-version` | string | false | `latest` | OpenTofu setup version; pin a version supporting the module's features. |
-| `working-directory` | string | false | `.` | Module directory relative to the caller checkout. |
-| `test-directory` | string | false | `tests` | Test directory relative to the module; root tests are also discovered. |
-| `prepare-script` | string | false | empty | Bash script relative to the module, run before init in the disposable copy. |
-| `test-override-directory` | string | false | empty | Directory relative to the module, copied after validate. |
+|                                                 INPUT                                                 |  TYPE  | REQUIRED |  DEFAULT   |                                                               DESCRIPTION                                                                |
+|-------------------------------------------------------------------------------------------------------|--------|----------|------------|------------------------------------------------------------------------------------------------------------------------------------------|
+|                          <a name="input_engine"></a>[engine](#input_engine)                           | string |  false   |  `"both"`  |       Engines to check: both, terraform, <br>or opentofu. Selecting one does <br>not establish compatibility with the <br>other.         |
+|           <a name="input_opentofu-version"></a>[opentofu-version](#input_opentofu-version)            | string |  false   | `"latest"` |                               OpenTofu version; pin a release <br>supporting the module's test features.                                 |
+|              <a name="input_prepare-script"></a>[prepare-script](#input_prepare-script)               | string |  false   |            | Optional Bash script relative to <br>the module, run before init <br>in a disposable copy to <br>install synthetic dependency fixtures.  |
+|          <a name="input_terraform-version"></a>[terraform-version](#input_terraform-version)          | string |  false   |  `"1.x"`   |                                Terraform version constraint; mocked tests <br>require Terraform >= 1.7.                                  |
+|              <a name="input_test-directory"></a>[test-directory](#input_test-directory)               | string |  false   | `"tests"`  |                          Test directory relative to the <br>module; root-level tests are also <br>discovered.                            |
+| <a name="input_test-override-directory"></a>[test-override-directory](#input_test-override-directory) | string |  false   |            |     Optional directory relative to the <br>module containing *_override.tf or *_override.tf.json files, copied <br>after validate.       |
+|          <a name="input_working-directory"></a>[working-directory](#input_working-directory)          | string |  false   |   `"."`    |                                          Module directory relative to the <br>caller checkout.                                           |
 
 <!-- AUTO-DOC-INPUT:END -->
 
@@ -73,7 +73,11 @@ a configured override directory must contain at least one `*_override.tf` or
 formatting, initialization, validation, and test failures are propagated. There
 is no option to skip validation or tests.
 
-## Secrets and outputs
+## Secrets
+
+<!-- AUTO-DOC-SECRETS:START - Do not remove or modify this section -->
+No secrets.
+<!-- AUTO-DOC-SECRETS:END --> and outputs
 
 No caller secrets or workflow outputs.
 
