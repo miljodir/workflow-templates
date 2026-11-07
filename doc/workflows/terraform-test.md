@@ -220,5 +220,17 @@ existing custom `checks` directory. A temporary negative Actions run configured
 the JSON caller with `test-directory: missing` while retaining its passing root
 test, proving both engines fail the explicit-directory guard; the caller was
 restored after verification.
+
+Permanent `Negative guards` jobs run on both engines for assertion failures,
+zero-run suites, missing files and an explicit missing directory with an unchanged
+passing root test. The harness reads the actual `run` scripts from
+`terraform-test.yaml` and executes them with Bash `-euo pipefail` and real engine
+binaries; it does not copy the guard implementation. It requires both nonzero
+exit status and the expected diagnostic, so setup errors cannot masquerade as
+expected rejections. The directory case first proves the root test passes.
+These are guard-script regression tests, not intentionally failing workflow-call
+jobs; the existing positive callers continue to verify workflow wiring and
+engine-specific step conditions. The regression jobs use read-only permissions
+and do not expose any failure-suppression input to consumers.
 The sensitive-output fixture uses a mocked `random_password`, whose root output
 needs a `sensitive = true` override for OpenTofu validation and both engines' tests.
