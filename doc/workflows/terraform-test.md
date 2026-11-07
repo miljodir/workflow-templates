@@ -31,8 +31,11 @@ jobs:
     uses: miljodir/workflow-templates/.github/workflows/terraform-test.yaml@terraform-test/v0
     with:
       terraform-version: "1.x"
-      opentofu-version: "1.13.9"
+      opentofu-version: "1.x"
 ```
+
+`1.x` floats to the latest stable OpenTofu 1.x release; use a full version
+such as `1.13.9` for reproducible runs.
 
 `terraform-test/v0` is a moving major tag that tracks the latest `0.x`
 release; pre-1.0 releases may include breaking changes. For a fixed reference, pin a version tag such as
@@ -129,7 +132,7 @@ fixtures **before** initialization:
     with:
       prepare-script: scripts/prepare-test-fixtures.sh
       test-override-directory: tests/overrides
-      opentofu-version: "1.13.9"
+      opentofu-version: "1.x"
 ```
 
 The script runs with Bash `-euo pipefail` from the copied module directory.
