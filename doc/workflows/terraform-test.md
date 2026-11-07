@@ -192,3 +192,6 @@ pre-init synthetic dependency substitution, post-validation output overrides,
 and both engines. Repository `Actionlint` checks the workflow syntax and shell
 scripts. The checks workflow is excluded from workflow release tagging; the
 reusable `terraform-test.yaml` receives its own versioned release.
+
+Additional callers exercise exclusively root-level `.tftest.json` tests on both
+engines and exclusively `.tofutest.hcl`/`.tofutest.json` files on OpenTofu.

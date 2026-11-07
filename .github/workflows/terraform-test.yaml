@@ -147,7 +147,7 @@ jobs:
         run: |
           shopt -s nullglob
           tests=(*.tftest.hcl *.tftest.json "$TEST_DIRECTORY/"*.tftest.hcl "$TEST_DIRECTORY/"*.tftest.json)
-          if [[ "$CHECK_ENGINE" == opentofu ]]; then
+          if [[ "$CHECK_ENGINE" == tofu ]]; then
             tests+=(*.tofutest.hcl *.tofutest.json "$TEST_DIRECTORY/"*.tofutest.hcl "$TEST_DIRECTORY/"*.tofutest.json)
           fi
           if [[ "${#tests[@]}" -eq 0 ]]; then

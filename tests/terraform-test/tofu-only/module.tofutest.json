@@ -1,0 +1,13 @@
+{
+  "run": {
+    "json_plan": {
+      "command": "plan",
+      "assert": [
+        {
+          "condition": "${output.value}",
+          "error_message": "The root OpenTofu JSON test must execute."
+        }
+      ]
+    }
+  }
+}
