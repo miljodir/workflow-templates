@@ -36,6 +36,7 @@ jobs:
     uses: ./.github/workflows/terraform-test.yaml
     with:
       working-directory: tests/terraform-test/json
+      test-directory: missing
       terraform-version: "1.7.0"
       opentofu-version: "1.13.9"
   tofu-only:

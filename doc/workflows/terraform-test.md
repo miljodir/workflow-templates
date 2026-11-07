@@ -68,6 +68,11 @@ For multiple modules or engine versions, use caller-level matrix jobs with
 <!-- AUTO-DOC-INPUT:END -->
 
 Paths must be relative, without `..` components. A configured script must exist;
+`test-directory` defaults to an empty sentinel, effectively the native `tests`
+directory. Omitting it (or leaving it empty) permits root-only tests when there
+is no `tests` directory. Any explicitly named directory, including `tests`, must
+exist after preparation and before initialization; a typo cannot be masked by a
+passing root-level suite. The same discovery and existence rules apply to both engines.
 a configured override directory must contain at least one `*_override.tf` or
 `*_override.tf.json`. Overrides cannot replace existing root files. Script,
 formatting, initialization, validation, and test failures are propagated. There

@@ -20,9 +20,9 @@ on:
         type: string
         default: "."
       test-directory:
-        description: "Test directory relative to the module; root-level tests are also discovered."
+        description: "Test directory relative to the module. Empty uses native tests default; an explicit directory must exist. Root tests are also discovered."
         type: string
-        default: tests
+        default: ""
       prepare-script:
         description: "Optional Bash script relative to the module, run before init in a disposable copy to install synthetic dependency fixtures."
         type: string
@@ -52,7 +52,7 @@ jobs:
       TF_INPUT: "false"
       CHECK_ENGINE: ${{ matrix.engine == 'opentofu' && 'tofu' || 'terraform' }}
       MODULE_DIRECTORY: ${{ inputs.working-directory }}
-      TEST_DIRECTORY: ${{ inputs.test-directory }}
+      TEST_DIRECTORY: ${{ inputs.test-directory || 'tests' }}
       PREPARE_SCRIPT: ${{ inputs.prepare-script }}
       OVERRIDE_DIRECTORY: ${{ inputs.test-override-directory }}
     steps:
@@ -114,6 +114,15 @@ jobs:
           echo "### $CHECK_ENGINE: fixture-backed validation" >> "$GITHUB_STEP_SUMMARY"
           echo "Dependency preparation is enabled. Validation and tests check the prepared configuration, not the original dependency implementations or accessibility." >> "$GITHUB_STEP_SUMMARY"
           bash -euo pipefail "$PREPARE_SCRIPT"
+
+      - name: Require explicitly configured test directory
+        if: inputs.test-directory != ''
+        working-directory: ${{ env.CHECK_DIRECTORY }}
+        run: |
+          if [[ ! -d "$TEST_DIRECTORY" ]]; then
+            echo "::error::Explicit test-directory does not exist or is not a directory"
+            exit 1
+          fi
 
       - name: Initialize without a backend
         working-directory: ${{ env.CHECK_DIRECTORY }}
