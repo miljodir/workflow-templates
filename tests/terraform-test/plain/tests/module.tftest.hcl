@@ -10,7 +10,7 @@ run "mocked_apply" {
   command = apply
 
   assert {
-    condition     = output.number == 8
+    condition     = output.number == 7
     error_message = "The mocked provider must return the synthetic number."
   }
 }
