@@ -215,5 +215,10 @@ input also intentionally versions the reusable release-metadata workflow.
 
 Additional callers exercise exclusively root-level `.tftest.json` tests on both
 engines and exclusively `.tofutest.hcl`/`.tofutest.json` files on OpenTofu.
+The root-only JSON caller omits `test-directory`; the fixture caller names the
+existing custom `checks` directory. A temporary negative Actions run configured
+the JSON caller with `test-directory: missing` while retaining its passing root
+test, proving both engines fail the explicit-directory guard; the caller was
+restored after verification.
 The sensitive-output fixture uses a mocked `random_password`, whose root output
 needs a `sensitive = true` override for OpenTofu validation and both engines' tests.
