@@ -77,7 +77,9 @@ is no option to skip validation or tests.
 
 <!-- AUTO-DOC-SECRETS:START - Do not remove or modify this section -->
 No secrets.
-<!-- AUTO-DOC-SECRETS:END --> and outputs
+<!-- AUTO-DOC-SECRETS:END -->
+
+## Outputs
 
 No caller secrets or workflow outputs.
 
@@ -154,9 +156,17 @@ by these credential-free tests.
 
 Some modules need root-only overrides (for example, marking outputs sensitive
 when tested as a root module). Enable `test-override-directory` explicitly for
-those callers. Files are copied **after** validation and before tests, so
-validation still checks the pre-override configuration. Tests evaluate the
-overridden configuration. Keep overrides limited to test-only output metadata;
+those callers. Terraform validates **before** these overrides are copied.
+OpenTofu validates **after** they are copied, because its validation can reject
+otherwise usable modules whose root outputs need `sensitive = true`.
+Without configured output overrides, both engines validate the pre-override
+configuration. Tests always evaluate the overridden configuration when enabled.
+
+OpenTofu's job emits a notice and summary explaining that its validation checks
+the test-adjusted output metadata, **not the original root output metadata**.
+This is intentional ordering, not a retry or suppression of validation errors;
+the applicable validation command always runs and must succeed.
+Keep overrides limited to test-only output metadata;
 changing output expressions or resource behavior reduces what the tests prove.
 The workflow's own fixture deliberately changes an expression to verify ordering,
 not as a recommended consumer pattern.
@@ -188,10 +198,12 @@ References:
 
 `terraform-test-checks.yaml` calls the reusable workflow directly on PRs and
 main pushes. It covers a real mocked provider apply, a custom test directory,
-pre-init synthetic dependency substitution, post-validation output overrides,
+pre-init synthetic dependency substitution, engine-specific output override ordering,
 and both engines. Repository `Actionlint` checks the workflow syntax and shell
 scripts. The checks workflow is excluded from workflow release tagging; the
 reusable `terraform-test.yaml` receives its own versioned release.
 
 Additional callers exercise exclusively root-level `.tftest.json` tests on both
 engines and exclusively `.tofutest.hcl`/`.tofutest.json` files on OpenTofu.
+The sensitive-output fixture uses a mocked `random_password`, whose root output
+needs a `sensitive = true` override for OpenTofu validation and both engines' tests.

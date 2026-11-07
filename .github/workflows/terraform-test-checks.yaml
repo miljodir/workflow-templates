@@ -44,3 +44,9 @@ jobs:
       engine: opentofu
       working-directory: tests/terraform-test/tofu-only
       opentofu-version: "1.13.9"
+  sensitive-output:
+    uses: ./.github/workflows/terraform-test.yaml
+    with:
+      working-directory: tests/terraform-test/sensitive-output
+      test-override-directory: tests/overrides
+      opentofu-version: "1.13.9"

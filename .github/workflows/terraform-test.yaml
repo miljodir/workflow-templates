@@ -28,7 +28,7 @@ on:
         type: string
         default: ""
       test-override-directory:
-        description: "Optional directory relative to the module containing *_override.tf or *_override.tf.json files, copied after validate."
+        description: "Optional output override directory relative to the module; copied after Terraform validation but before OpenTofu validation."
         type: string
         default: ""
 
@@ -120,6 +120,7 @@ jobs:
         run: '"$CHECK_ENGINE" init -backend=false -input=false -no-color -test-directory="$TEST_DIRECTORY"'
 
       - name: Validate before test-only output overrides
+        if: matrix.engine == 'terraform' || inputs.test-override-directory == ''
         working-directory: ${{ env.CHECK_DIRECTORY }}
         run: '"$CHECK_ENGINE" validate -no-color'
 
@@ -140,7 +141,18 @@ jobs:
             fi
             cp "$override" .
           done
-          echo "::notice::Test-only overrides are active for tests, but were not used by the preceding validate step"
+          if [[ "$CHECK_ENGINE" == tofu ]]; then
+            echo "::notice::OpenTofu validation and tests use test-only output overrides; original output metadata is not validated"
+            echo "### OpenTofu: test-only output overrides" >> "$GITHUB_STEP_SUMMARY"
+            echo "Validation and tests check overridden output metadata, not the original root output metadata." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::notice::Test-only overrides are active for tests, but were not used by the preceding validate step"
+          fi
+
+      - name: OpenTofu validate with test-only output overrides
+        if: matrix.engine == 'opentofu' && inputs.test-override-directory != ''
+        working-directory: ${{ env.CHECK_DIRECTORY }}
+        run: '"$CHECK_ENGINE" validate -no-color'
 
       - name: Run native tests and require executed tests
         working-directory: ${{ env.CHECK_DIRECTORY }}
