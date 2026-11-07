@@ -26,6 +26,11 @@ on:
         description: "Write Terraform docs to wiki or not"
         required: false
         default: "false"
+      exclude-files:
+        type: string
+        description: "JSON array of exact repository-relative paths to exclude from release detection."
+        required: false
+        default: "[]"
 
 jobs:
   detect:
@@ -72,9 +77,13 @@ jobs:
         id: condense
         env:
           RAW_FILES: "${{ steps.raw-files.outputs.all }}"
+          EXCLUDE_FILES: ${{ inputs.exclude-files }}
         with:
           script: |
-            const raw = JSON.parse(process.env.RAW_FILES);
+            const excluded = JSON.parse(process.env.EXCLUDE_FILES);
+            if (!Array.isArray(excluded) || !excluded.every(path => typeof path === 'string'))
+              throw new Error('exclude-files must be a JSON array of repository-relative path strings');
+            const raw = JSON.parse(process.env.RAW_FILES).filter(path => !excluded.includes(path));
             let directories = Array.from(new Set(raw
               .filter(x => x.startsWith('${{ inputs.rootFolder }}'))
               .filter(x => x.includes('/'))

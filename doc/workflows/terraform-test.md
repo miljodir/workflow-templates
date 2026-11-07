@@ -203,6 +203,11 @@ and both engines. Repository `Actionlint` checks the workflow syntax and shell
 scripts. The checks workflow is excluded from workflow release tagging; the
 reusable `terraform-test.yaml` receives its own versioned release.
 
+Release detection explicitly excludes the internal checks, Actionlint and
+self-tagging workflows using `generate-release-metadata`'s `exclude-files` input;
+trigger path exclusions alone are insufficient. Adding this backward-compatible
+input also intentionally versions the reusable release-metadata workflow.
+
 Additional callers exercise exclusively root-level `.tftest.json` tests on both
 engines and exclusively `.tofutest.hcl`/`.tofutest.json` files on OpenTofu.
 The sensitive-output fixture uses a mocked `random_password`, whose root output

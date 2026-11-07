@@ -37,6 +37,10 @@ jobs:
       type: actions
       index-split: 2 # .github/workflows = index 2
       wiki-enabled: false
+      exclude-files: >-
+        [".github/workflows/self-tagging.yaml",
+         ".github/workflows/actionlint.yaml",
+         ".github/workflows/terraform-test-checks.yaml"]
 
   tag:
     permissions:

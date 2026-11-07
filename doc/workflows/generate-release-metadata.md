@@ -1,5 +1,12 @@
 ## Inputs
 
+`exclude-files` optionally supplies a JSON array of exact repository-relative
+changed-file paths that must not create releases. It defaults to `[]`, preserving
+existing callers. Invalid JSON or non-string array entries fail detection.
+Trigger path filters alone do not exclude files from a release plan when another
+changed file triggers the workflow. This repository excludes its internal CI
+workflows using this input in `self-tagging.yaml`.
+
 <!-- AUTO-DOC-INPUT:START - Do not remove or modify this section -->
 
 |                                INPUT                                 |  TYPE  | REQUIRED |    DEFAULT    |                                    DESCRIPTION                                     |
