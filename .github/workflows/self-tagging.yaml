@@ -9,6 +9,7 @@ on:
       - .github/workflows/**
       - "!.github/workflows/self-tagging.yaml"
       - "!.github/workflows/actionlint.yaml"
+      - "!.github/workflows/terraform-test-checks.yaml"
   pull_request_target:
     types: [closed]
     branches:
@@ -17,6 +18,7 @@ on:
       - .github/workflows/**
       - "!.github/workflows/self-tagging.yaml"
       - "!.github/workflows/actionlint.yaml"
+      - "!.github/workflows/terraform-test-checks.yaml"
 
   repository_dispatch:
     types: [create_release]

@@ -1,0 +1,161 @@
+name: Terraform and OpenTofu tests
+
+on:
+  workflow_call:
+    inputs:
+      engine:
+        description: "Engines to check: both, terraform, or opentofu. Selecting one does not establish compatibility with the other."
+        type: string
+        default: both
+      terraform-version:
+        description: "Terraform version constraint; mocked tests require Terraform >= 1.7."
+        type: string
+        default: "1.x"
+      opentofu-version:
+        description: "OpenTofu version; pin a release supporting the module's test features."
+        type: string
+        default: latest
+      working-directory:
+        description: "Module directory relative to the caller checkout."
+        type: string
+        default: "."
+      test-directory:
+        description: "Test directory relative to the module; root-level tests are also discovered."
+        type: string
+        default: tests
+      prepare-script:
+        description: "Optional Bash script relative to the module, run before init in a disposable copy to install synthetic dependency fixtures."
+        type: string
+        default: ""
+      test-override-directory:
+        description: "Optional directory relative to the module containing *_override.tf or *_override.tf.json files, copied after validate."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.engine }} checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: ${{ fromJSON(inputs.engine == 'both' && '["terraform","opentofu"]' || inputs.engine == 'terraform' && '["terraform"]' || '["opentofu"]') }}
+    defaults:
+      run:
+        shell: bash
+    env:
+      TF_IN_AUTOMATION: "true"
+      TF_INPUT: "false"
+      CHECK_ENGINE: ${{ matrix.engine == 'opentofu' && 'tofu' || 'terraform' }}
+      MODULE_DIRECTORY: ${{ inputs.working-directory }}
+      TEST_DIRECTORY: ${{ inputs.test-directory }}
+      PREPARE_SCRIPT: ${{ inputs.prepare-script }}
+      OVERRIDE_DIRECTORY: ${{ inputs.test-override-directory }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Check inputs and create disposable copy
+        env:
+          REQUESTED_ENGINE: ${{ inputs.engine }}
+        run: |
+          case "$REQUESTED_ENGINE" in
+            both|terraform|opentofu) ;;
+            *) echo "::error::engine must be both, terraform, or opentofu"; exit 1 ;;
+          esac
+          for path in "$MODULE_DIRECTORY" "$TEST_DIRECTORY" "$PREPARE_SCRIPT" "$OVERRIDE_DIRECTORY"; do
+            if [[ "$path" == /* || "/$path/" == *"/../"* ]]; then
+              echo "::error::Paths must be relative and cannot contain parent traversal"
+              exit 1
+            fi
+          done
+          copy="$RUNNER_TEMP/module-check"
+          mkdir -p "$copy"
+          rsync -a --exclude='.git' --exclude='.terraform' --exclude='*.tfstate*' "$GITHUB_WORKSPACE/" "$copy/"
+          module="$(realpath -e "$copy/$MODULE_DIRECTORY")"
+          if [[ "$module" != "$copy" && "$module" != "$copy/"* ]] || [[ ! -d "$module" ]]; then
+            echo "::error::working-directory must identify a directory inside the checkout"
+            exit 1
+          fi
+          echo "CHECK_DIRECTORY=$module" >> "$GITHUB_ENV"
+
+      - uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        if: matrix.engine == 'terraform'
+        with:
+          terraform_version: ${{ inputs.terraform-version }}
+          terraform_wrapper: false
+
+      - uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2
+        if: matrix.engine == 'opentofu'
+        with:
+          tofu_version: ${{ inputs.opentofu-version }}
+          tofu_wrapper: false
+
+      - name: Check formatting of original files
+        working-directory: ${{ env.CHECK_DIRECTORY }}
+        run: |
+          "$CHECK_ENGINE" version
+          "$CHECK_ENGINE" fmt -check -recursive
+
+      - name: Prepare synthetic dependency fixtures
+        if: inputs.prepare-script != ''
+        working-directory: ${{ env.CHECK_DIRECTORY }}
+        run: |
+          if [[ ! -f "$PREPARE_SCRIPT" ]]; then
+            echo "::error::prepare-script does not exist"
+            exit 1
+          fi
+          echo "::notice::Fixture-backed validation checks substituted dependencies, not the original dependency implementations or accessibility"
+          echo "### $CHECK_ENGINE: fixture-backed validation" >> "$GITHUB_STEP_SUMMARY"
+          echo "Dependency preparation is enabled. Validation and tests check the prepared configuration, not the original dependency implementations or accessibility." >> "$GITHUB_STEP_SUMMARY"
+          bash -euo pipefail "$PREPARE_SCRIPT"
+
+      - name: Initialize without a backend
+        working-directory: ${{ env.CHECK_DIRECTORY }}
+        run: '"$CHECK_ENGINE" init -backend=false -input=false -no-color -test-directory="$TEST_DIRECTORY"'
+
+      - name: Validate before test-only output overrides
+        working-directory: ${{ env.CHECK_DIRECTORY }}
+        run: '"$CHECK_ENGINE" validate -no-color'
+
+      - name: Apply test-only output overrides
+        if: inputs.test-override-directory != ''
+        working-directory: ${{ env.CHECK_DIRECTORY }}
+        run: |
+          shopt -s nullglob
+          overrides=("$OVERRIDE_DIRECTORY/"*_override.tf "$OVERRIDE_DIRECTORY/"*_override.tf.json)
+          if [[ "${#overrides[@]}" -eq 0 ]]; then
+            echo "::error::test-override-directory contains no supported override files"
+            exit 1
+          fi
+          for override in "${overrides[@]}"; do
+            if [[ -e "$(basename "$override")" ]]; then
+              echo "::error::Test override would replace an existing root file"
+              exit 1
+            fi
+            cp "$override" .
+          done
+          echo "::notice::Test-only overrides are active for tests, but were not used by the preceding validate step"
+
+      - name: Run native tests and require executed tests
+        working-directory: ${{ env.CHECK_DIRECTORY }}
+        run: |
+          shopt -s nullglob
+          tests=(*.tftest.hcl *.tftest.json "$TEST_DIRECTORY/"*.tftest.hcl "$TEST_DIRECTORY/"*.tftest.json)
+          if [[ "$CHECK_ENGINE" == opentofu ]]; then
+            tests+=(*.tofutest.hcl *.tofutest.json "$TEST_DIRECTORY/"*.tofutest.hcl "$TEST_DIRECTORY/"*.tofutest.json)
+          fi
+          if [[ "${#tests[@]}" -eq 0 ]]; then
+            echo "::error::No test files found in the module root or test-directory"
+            exit 1
+          fi
+          "$CHECK_ENGINE" test -no-color -test-directory="$TEST_DIRECTORY" | tee "$RUNNER_TEMP/native-test.log"
+          if ! grep -Eq '^Success! [1-9][0-9]* passed' "$RUNNER_TEMP/native-test.log"; then
+            echo "::error::The native test command must report at least one passing run; an empty or entirely skipped suite is not coverage"
+            exit 1
+          fi
