@@ -1,8 +1,8 @@
 name: Generate release metadata
 concurrency:
   # Merge runs get their own group and are never cancelled, so a release is never lost
-  group: ${{ github.repository }}-${{ github.event_name }}-${{ github.head_ref || github.run_id }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  group: ${{ github.repository }}-${{ github.event_name }}-${{ github.event.action != 'closed' && github.head_ref || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' }}
 on:
   workflow_call:
     inputs:
@@ -44,7 +44,7 @@ jobs:
       release-type: ${{ steps.check_pr_label.outputs.release-type}}
       changelog: ${{ steps.changelog.outputs.result }}
       is-merge-event: >-
-        ${{ github.event_name == 'pull_request_target'
+        ${{ (github.event_name == 'pull_request' || github.event_name == 'pull_request_target')
          && github.event.action == 'closed'
          && github.event.pull_request.merged == true }}
     steps:
@@ -192,13 +192,13 @@ jobs:
           result-encoding: string
 
       - uses: actions/checkout@v7
-        if: ${{ github.event_name == 'pull_request' && inputs.type == 'actions' }}
+        if: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' && inputs.type == 'actions' }}
         with:
           ref: ${{ github.event.pull_request.head.ref }}
 
       - name: Auto documentation for ${{ matrix.directory }} reusable workflow
         uses: tj-actions/auto-doc@b10ceedffd794ec29a8fa8700529f40c1b64a951 # v3
-        if: ${{ github.event_name == 'pull_request' && inputs.type == 'actions' }}
+        if: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' && inputs.type == 'actions' }}
         continue-on-error: true
         with:
           reusable: true
@@ -206,7 +206,7 @@ jobs:
           filename: .github/workflows/${{ matrix.directory }}.yaml
 
       - name: Update documentation
-        if: ${{ github.event_name == 'pull_request' && inputs.type == 'actions' }}
+        if: ${{ github.event_name == 'pull_request' && github.event.action != 'closed' && inputs.type == 'actions' }}
         continue-on-error: true
         env:
           ref: ${{ github.head_ref }}
