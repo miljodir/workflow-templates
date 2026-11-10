@@ -24,6 +24,7 @@ concurrency:
 
 jobs:
   actionlint:
+    if: ${{ true }}   # GitHub's documented fix for running outside the source repo
     name: Lint workflows
     runs-on: ubuntu-latest
     env:
