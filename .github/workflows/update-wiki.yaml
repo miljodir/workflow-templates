@@ -25,6 +25,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: wiki
           fetch-depth: 0
+
       - name: Ensure wiki folder
         run: mkdir -p wiki/generated
       - name: Display retrieved artifacts
