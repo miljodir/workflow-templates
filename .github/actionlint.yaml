@@ -15,4 +15,4 @@ paths:
   .github/workflows/actionlint.yaml:
     ignore:
       # This is the documented workaround for x-repo required workflows
-      - 'if-cond: constant expression "true" in condition. remove the if: section'
+      - '^constant expression "true" in condition\. remove the if: section$'
