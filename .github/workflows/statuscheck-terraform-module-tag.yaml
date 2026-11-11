@@ -1,0 +1,19 @@
+name: Create and update git tag for updated workflows
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  pr:
+    if: ${{ true }}   # GitHub's documented fix for running outside the source
+    uses: ./.github/workflows/generate-release-metadata.yaml
+    permissions:
+      pull-requests: write
+      contents: write
+    with:
+      rootFolder: /
+      type: terraform
+      index-split: 0
+      wiki-enabled: true
+      exclude-files: '["tests/**"]'
