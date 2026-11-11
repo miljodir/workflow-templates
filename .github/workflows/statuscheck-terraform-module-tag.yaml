@@ -15,5 +15,5 @@ jobs:
       rootFolder: /
       type: terraform
       index-split: 0
-      wiki-enabled: "true"
+      wiki-enabled: true
       exclude-files: '["tests/**"]'

@@ -15,4 +15,4 @@ jobs:
       rootFolder: .github/workflows
       type: actions
       index-split: 2 # .github/workflows = index 2
-      wiki-enabled: "false"
+      wiki-enabled: false
