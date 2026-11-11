@@ -11,6 +11,8 @@ paths:
       # The string input is passed a YAML boolean, which GitHub coerces to the string "false" as intended.
       # actionlint reports this even when the value is quoted, so it is ignored instead of rewritten.
       - 'input "wiki-enabled" is typed as string by reusable workflow'
+      # This is the documented workaround for x-repo required workflows
+      - '^constant expression "true" in condition\. remove the if: section$'
 
   .github/workflows/actionlint.yaml:
     ignore:

@@ -27,7 +27,7 @@ permissions: {}
 
 jobs:
   pr:
-    if: github.event_name != 'repository_dispatch'
+    if: ${{ true &&  github.event_name != 'repository_dispatch' }}   # GitHub's documented fix for running outside the source
     uses: ./.github/workflows/generate-release-metadata.yaml
     permissions:
       pull-requests: write
